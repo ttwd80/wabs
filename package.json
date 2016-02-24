@@ -1,0 +1,36 @@
+{
+  "name": "byu-wabs",
+  "version": "1.0.0",
+  "description": "The BYU Web Application Bootstrap Server is a static file server that integrates backward interoperability with legacy applications stateful nature and also handles OAuth token management.",
+  "main": "index.js",
+  "bin": {
+    "byu-wabs": "index.js"
+  },
+  "directories": {
+    "test": "tests"
+  },
+  "dependencies": {
+    "command-line-args": "^2.1.6"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BYU-OIT/wabs.git"
+  },
+  "keywords": [
+    "static",
+    "server",
+    "oauth",
+    "jwt",
+    "brownie"
+  ],
+  "author": "James Speirs",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/BYU-OIT/wabs/issues"
+  },
+  "homepage": "https://github.com/BYU-OIT/wabs#readme"
+}
