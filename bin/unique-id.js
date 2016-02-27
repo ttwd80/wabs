@@ -20,6 +20,11 @@ module.exports = function() {
         unique_id.index = 1;
     }
 
-    //return the new id
-    return base + unique_id.index.toString(36);
+    //return the new id - with a base length of 9 we accommodate until April 22 5188 at 5:04:28 GMT. With 8 it would be until May 25 2059 11:38:27 GMT.
+    return addZeros(base, 9) + '-' + addZeros(unique_id.index.toString(36), 4);
 };
+
+function addZeros(str, length) {
+    while (str.length < length) str = '0' + str;
+    return str;
+}

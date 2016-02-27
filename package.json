@@ -10,7 +10,22 @@
     "test": "tests"
   },
   "dependencies": {
-    "command-line-args": "^2.1.6"
+    "bluebird": "^3.3.1",
+    "bluebird-settle": "^1.0.2",
+    "body-parser": "^1.15.0",
+    "chalk": "^1.1.1",
+    "cheerio": "^0.20.0",
+    "chokidar": "^1.4.2",
+    "command-line-args": "^2.1.6",
+    "connect-timeout": "^1.7.0",
+    "cookie-parser": "^1.4.1",
+    "custom-error-instance": "^2.1.1",
+    "express": "^4.13.4",
+    "fs-map": "^1.0.0",
+    "http-status-codes": "^1.0.6",
+    "on-finished": "^2.3.0",
+    "on-headers": "^1.0.1",
+    "request": "^2.69.0"
   },
   "devDependencies": {},
   "scripts": {
