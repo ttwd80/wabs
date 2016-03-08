@@ -2,7 +2,6 @@
 /**
  * This file provides a logging middleware for the server.
  */
-const activity      = require('./active-requests');
 const chalk         = require('chalk');
 const onFinished    = require('on-finished');
 const onHeaders     = require('on-headers');
@@ -17,8 +16,6 @@ const uniqueId      = require('../unique-id');
 module.exports = function(req, res, next) {
     var bytes = 0;
     var date = new Date();
-    var key;
-    var loadStart = activity.load();
     var received = date.toISOString();
     var sendStart;
     var start = +date;
@@ -33,25 +30,19 @@ module.exports = function(req, res, next) {
         write.apply(res, arguments);
     };
 
-    // store the log data until the request completes
-    key = activity.add(res);
-
     onHeaders(res, function() {
         sendStart = Date.now() - start;
     });
 
     onFinished(res, function(err, res) {
         var diff;
+        var headerBytes = res._header ? res._header.length : 0;
         var load;
-        var totalBytes = getMetric(bytes + res._header.length);
+        var totalBytes = getMetric(bytes + headerBytes);
 
         // get the number of bytes and processing time
         diff = '' + ((Date.now() - start) / 1000);
         if (!/\./.test(diff)) diff += '.0';
-
-        // remove request from activity and get average load
-        activity.remove(key);
-        load = Math.round((loadStart + activity.load()) / 2);
 
         console.log(
             req.id + ' : ' +

@@ -6,46 +6,49 @@
  */
 var request             = require('../request');
 
-// the brownie-cryptography url
-var serviceUrl = 'https://lambda-tst.byu.edu/ae/prod/brownie-dumper/cgi/brownie-dumper.cgi/json';
+module.exports = function(serviceUrl) {
+    var factory = {};
 
-/**
- * Decode a brownie from the C-framework.
- * @param {string} encodedBrownie
- * @param {string} sessionKey
- * @returns {Promise}
- */
-exports.decode = function(encodedBrownie, sessionKey) {
-    var options = {
-        url: serviceUrl + "?sessionKey=" + sessionKey + '&brownie=' + encodedBrownie,
-        method: 'GET',
-        headers: {
-            'Accept': 'application/json'
-        }
-    };
-    return request(options).then(getDecodedBrownieFromResponse);
-};
-
-/**
- * Encode a brownie for the C-framework.
- * @param {string} encodedBrownie The original encoded brownie that the C-framework sent.
- * @param {string} sessionKey The session key.
- * @param {object} data The data to add to the brownie.
- * @returns {Promise}
- */
-exports.encode = function(encodedBrownie, sessionKey, data) {
-    var body = Object.assign({ brownie: encodedBrownie, sessionKey: sessionKey }, data);
-    var options = {
-        url: serviceUrl,
-        method: 'POST',
-        headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
+    /**
+     * Decode a brownie from the C-framework.
+     * @param {string} encodedBrownie
+     * @param {string} sessionKey
+     * @returns {Promise}
+     */
+    factory.decode = function(encodedBrownie, sessionKey) {
+        var options = {
+            url: serviceUrl + "?sessionKey=" + sessionKey + '&brownie=' + encodedBrownie,
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        };
+        return request(options).then(getDecodedBrownieFromResponse);
     };
 
-    return request(options).then(getDecodedBrownieFromResponse);
+    /**
+     * Encode a brownie for the C-framework.
+     * @param {string} encodedBrownie The original encoded brownie that the C-framework sent.
+     * @param {string} sessionKey The session key.
+     * @param {object} data The data to add to the brownie.
+     * @returns {Promise}
+     */
+    factory.encode = function(encodedBrownie, sessionKey, data) {
+        var body = Object.assign({ brownie: encodedBrownie, sessionKey: sessionKey }, data);
+        var options = {
+            url: serviceUrl,
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body)
+        };
+
+        return request(options).then(getDecodedBrownieFromResponse);
+    };
+
+    return factory;
 };
 
 /**

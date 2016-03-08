@@ -1,9 +1,9 @@
 "use strict";
-const cheerio           = require('cheerio');
 const chokidar          = require('chokidar');
 const CustomError       = require('custom-error-instance');
 const fs                = require('fs');
 const fsMap             = require('fs-map');
+const injector          = require('./server/injector');
 const path              = require('path');
 const Promise           = require('bluebird');
 
@@ -12,12 +12,10 @@ const readFile = Promise.promisify(fs.readFile);
 
 /**
  * Returns a promise that resolves to an object.
- * @param {string} srcDirectory The src directory containing the static files.
- * @param {boolean} watch Set to true to watch files for changes.
- * @param {string} endpoint The URL end point for the WABS requests.
+ * @param {object} config The configuration object used to start the application.
  * @returns {Promise}
  */
-module.exports = function(srcDirectory, watch, endpoint) {
+module.exports = function(config) {
     var store = {};
 
     /**
@@ -27,39 +25,49 @@ module.exports = function(srcDirectory, watch, endpoint) {
      */
     function setStats(filePath, stats) {
 
-        // if the path is not for an app root (meaning it has an html body tag) the just cache the stats as is
+        // if the path is not an html file then just cache the stats as is
         if (!stats.isFile() || !/\.html?$/i.test(filePath)) {
             store[filePath] = stats;
             console.log('Registered: ' + filePath);
             return Promise.resolve();
         }
 
-        // if the file path is for an app root (meaning it has an html body tag) then read it, modify it, and cache it
+        // read the content of the html file
         return readFile(filePath, 'utf8')
             .then(function (content) {
-                var $ctrl = cheerio.load(content);
-                if ($ctrl('body').length > 0) {
-                    $ctrl('body').append('<script src="' + endpoint + '/wabs.js"></script>'); // data injected by cookie
-                    stats.html = $ctrl.html();
-                }
+                var data;
+                var html;
+
+                // process the html
+                data = injector.process(content);
+                html = data.html;
+
+                // store authentication mode data
+                stats.authMode = data.authMode;
+
+                // if the html was modified then add html to the stats object
+                if (html.length !== content.length) stats.html = html;
+
+                // store the stats object
                 store[filePath] = stats;
+
                 console.log('Registered main: ' + filePath);
             });
     }
 
     return new Promise(function(resolve, reject) {
-        fs.stat(srcDirectory, function(err, stats) {
+        fs.stat(config.src, function(err, stats) {
             var factory;
             var promises = [];
             var watchReady = false;
 
             if (err) return reject(err);
             if (!stats.isDirectory()) return reject(Err('The specified --src must be a directory.'));
-            setStats(srcDirectory, stats);
+            setStats(config.src, stats);
 
             // use the file watch mapping
-            if (watch) {
-                chokidar.watch(srcDirectory, { alwaysStat: true })
+            if (config.watch) {
+                chokidar.watch(config.src, { alwaysStat: true })
                     .on('add', function(filePath, stats) {
                         var promise = setStats(filePath, stats);
                         if (!watchReady) promises.push(promise);
@@ -80,7 +88,7 @@ module.exports = function(srcDirectory, watch, endpoint) {
 
             // use a static mapping
             } else {
-                fsMap(srcDirectory)
+                fsMap(config.src)
                     .then(function(data) {
                         var promises = [];
                         Object.keys(data).forEach(function(filePath) {
@@ -92,6 +100,16 @@ module.exports = function(srcDirectory, watch, endpoint) {
 
             // initialize the factory
             factory = {};
+
+            /**
+             * Determine the authentication mode that the file should use.
+             * @param {string} filePath
+             * @returns {string}
+             */
+            factory.authMode = function(filePath) {
+                var stats = factory.get(filePath);
+                return stats ? stats.authMode || config.authenticate : config.authenticate;
+            };
 
             /**
              * From a directory path, get the file path to the index.html or index.htm file.
@@ -122,7 +140,7 @@ module.exports = function(srcDirectory, watch, endpoint) {
              */
             factory.isAppRoot = function(filePath) {
                 var stats = factory.get(filePath);
-                return stats && stats.html;
+                return stats && stats.html ? true : false;
             };
 
             /**

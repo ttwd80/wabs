@@ -1,15 +1,21 @@
 "use strict";
 const fs            = require('fs');
 const httpStatus    = require('http-status-codes');
+const noop          = require('./noop');
 const path          = require('path');
 
-module.exports = function(templatePath) {
+module.exports = function(config) {
+    return !config.proxy ? statusViewHandler(config) : noop;
+};
+
+function statusViewHandler(config) {
     var template;
+    var templatePath;
 
     // get the template path
-    templatePath = !templatePath ?
-        path.resolve(__dirname, 'template.html') :
-        path.resolve(process.cwd(), templatePath);
+    templatePath = !config.statusView ?
+        path.resolve(__dirname, '../www/view.html') :
+        path.resolve(process.cwd(), config.statusView);
 
     // get the template content
     template = fs.readFileSync(templatePath, 'utf8');
@@ -34,4 +40,4 @@ module.exports = function(templatePath) {
 
         next();
     };
-};
+}
