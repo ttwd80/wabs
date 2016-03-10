@@ -163,9 +163,9 @@
     // initialize
     (function() {
         var data;
-        var element = document.querySelector('head meta[name="wabs-brownie"]');
+        var element = document.querySelector('head meta[name="wabs-brownie-data"]');
         var mode;
-        var modeElement = document.querySelector('head meta[name="wabs-brownie-mode"]');
+        var modeElement = document.querySelector('head meta[name="wabs-brownie"]');
 
         if (element) {
             data = element.getAttribute('content');

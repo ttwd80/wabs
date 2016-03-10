@@ -38,10 +38,21 @@ function Brownie(config) {
 
     // return brownie middleware
     return function(req, res, next) {
-        if (req.method === 'POST' && req.url.indexOf(config.endpoint) !== 0) {
+        if (req.method === 'POST' && !req.wabsEndpoint) {
             decode(crypto, req, res, next);
         } else if (req.method === 'PUT' && req.url.indexOf(config.endpoint + '/brownie/encode') === 0) {
             encode(crypto, req, res, next);
+        } else if (req.method === 'GET' && req.query.hasOwnProperty('wabs-brownie')) {
+            let brownie = req.query['wabs-brownie'];
+            let sessionKey = req.cookies.hasOwnProperty('brownie') ? req.cookies.brownie : null;
+            crypto.decode(brownie, sessionKey)
+                .then(function (decodedBrownie) {
+                    res.wabs.brownie = decodedBrownie;
+                    next();
+                })
+                .catch(function (err) {
+                    next(err);
+                });
         } else {
             next();
         }
@@ -52,12 +63,12 @@ Brownie.options = {
     brownie: {
         alias: 'b',
         description: 'Specify the level of brownie support. Valid values include "' + levels.join('", "') + '". \n\n' +
-            chalk.bold.cyan('none') + ': Will not provide brownie support.\n\n' +
-            chalk.bold.cyan('manual') + ': Will provide brownie data and the library but will not automatically ' +
+            chalk.bold.green('none') + ': Will not provide brownie support.\n\n' +
+            chalk.bold.green('manual') + ': Will provide brownie data and the library but will not automatically ' +
             'trigger brownie data transfer when navigating to a legacy application.\n\n' +
-            chalk.bold.cyan('always') + ': Will provide full brownie support and will automatically cause links that ' +
+            chalk.bold.green('always') + ': Will provide full brownie support and will automatically cause links that ' +
             'navigate to legacy applications to send that information in a way that the legacy application can ' +
-            'interpret it.',
+            'capture it.',
         type: String,
         transform: (v) => v.toLowerCase(),
         validate: (v) => levels.indexOf(v.toLowerCase()) !== -1,
@@ -68,7 +79,7 @@ Brownie.options = {
         alias: 'u',
         description: 'The URL to use as a web service to encode and decode brownie data.',
         type: String,
-        defaultValue: 'https://lambda-tst.byu.edu/ae/prod/brownie-dumper/cgi/brownie-dumper.cgi/json',
+        defaultValue: 'https://lambda.byu.edu/ae/prod/brownie-dumper/cgi/brownie-dumper.cgi/json',
         group: 'brownie'
     }
 };
@@ -83,12 +94,25 @@ function decode(crypt, req, res, next) {
         // if there was an error then pass it along
         if (err) return next(err);
 
-        // get the brownie and session key
+        // get the session key
         brownie = req.body.hasOwnProperty('brownie') ? req.body.brownie : null;
         sessionKey = req.cookies.hasOwnProperty('brownie') ? req.cookies.brownie : null;
 
-        // if the brownie is set then decode it
-        if (brownie !== null && sessionKey !== null) {
+        // if we are missing the session key or brownie then we just ignore it and continue processing the request elsewhere
+        if (brownie === null || sessionKey === null) return next();
+
+        // if auth mode is always then we have to store the brownie data on the query string
+        if (req.authMode === 'always') {
+            let query = Object.assign({}, req.query, { 'wabs-brownie': brownie });
+            let url = req.url.split('?')[0];
+            Object.keys(query).forEach(function(key, index) {
+                var value = query[key];
+                url += (index === 0 ? '?' : '&') + key + (('' + value) ? '=' + encodeURIComponent(value) : '');
+            });
+            res.redirect(url);
+
+        // we don't need to redirect for oauth so we can modify the request
+        } else {
             crypt.decode(brownie, sessionKey)
                 .then(function (decodedBrownie) {
                     req.method = 'GET';
@@ -98,8 +122,6 @@ function decode(crypt, req, res, next) {
                 .catch(function (err) {
                     next(err);
                 });
-        } else {
-            next();
         }
     });
 }
@@ -135,5 +157,31 @@ function encode(crypt, req, res, next) {
             .catch(function(err) {
                 next(err);
             });
+    });
+}
+
+function redirectAsGet(req, res, next) {
+    cFrameworkFormParser(req, res, function(err) {
+        var brownie;
+        var sessionKey;
+
+        // if there was an error then pass it along
+        if (err) return next(err);
+
+        // get the brownie and session key
+        brownie = req.body.hasOwnProperty('brownie') ? req.body.brownie : null;
+        sessionKey = req.cookies.hasOwnProperty('brownie') ? req.cookies.brownie : null;
+
+        if (brownie && sessionKey) {
+            var query = Object.assign({}, req.query, { 'wabs-brownie': brownie });
+            var url = req.url.split('?')[0];
+
+            Object.keys(query).forEach(function(key, index) {
+                var value = query[key];
+                url += (index === 0 ? '?' : '&') + key + (('' + value) ? '=' + encodeURIComponent(value) : '');
+            });
+
+            res.redirect(url);
+        }
     });
 }

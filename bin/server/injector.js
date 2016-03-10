@@ -41,8 +41,8 @@ function injector(config) {
             };
 
             // modify the html
-            html = replaceWithMeta(html, { endpoint: config.endpoint }, 'wabs-data');
-            html = replaceWithMeta(html, config.brownie !== 'none' ? data.brownie : '', 'wabs-brownie');
+            html = replaceWithMeta(html, { endpoint: config.endpoint, auth: config.authenticate, brownie: config.brownie }, 'wabs-data');
+            html = replaceWithMeta(html, config.brownie !== 'none' ? data.brownie : '', 'wabs-brownie-data');
             html = html.replace('<!-- wabs-script -->', script);
 
             // send the html
@@ -71,7 +71,7 @@ injector.process = function(content) {
 
     // if the html has a head tag then add placeholders and look for metadata
     if ($ctrl('head').length > 0) {
-        $ctrl('head').append('<!-- wabs-data --><!-- wabs-brownie -->');
+        $ctrl('head').append('<!-- wabs-data --><!-- wabs-brownie-data -->');
         authMode = $ctrl('head meta[name="wabs-authenticate-mode"]').attr('content');
     }
 

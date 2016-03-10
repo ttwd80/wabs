@@ -1,4 +1,5 @@
 "use strict";
+const camel             = require('../camel');
 const chalk             = require('chalk');
 const crypto            = require('crypto');
 const noop              = require('./noop');
@@ -16,13 +17,20 @@ const authStage = {
 function Authenticate(config, stats) {
     if (config.auth === 'none') return noop;
 
+    //check that each required property is set
+    ['consumerKey', 'consumerSecret', 'encryptSecret', 'wellKnownUrl'].forEach(function(key) {
+        if (!config.hasOwnProperty(key)) throw Error('Missing required configuration setting: ' + camel.to('-', key));
+    });
+
     const cKey = config.consumerKey;
     const cSecret = config.consumerSecret;
-    const eSecret = config.hasOwnProperty('encryptSecret') ? config.encryptSecret : crypto.randomBytes(24).toString();
+    const eSecret = config.encryptSecret;
     const wkUrl = config.wellKnownUrl;
 
-    function getRedirectUrl(req) {
-        return  req.protocol + '://' + req.get('host') + config.endpoint + '/auth/';
+    function getRedirectUrl(req, endpoint) {
+        var url = req.protocol + '://' + req.get('host') + config.endpoint + '/auth/';
+        if (endpoint) url += endpoint;
+        return url;
     }
 
     return function(req, res, next) {
@@ -30,50 +38,46 @@ function Authenticate(config, stats) {
         // if not a GET then exit
         if (req.method !== 'GET') return next();
 
-        /*res.clearCookie('wabs-auth-stage');
-        res.clearCookie('wabs-auth');
-        return next();*/
-
-        // handle cas login response
+        // cas gateway request redirects to here
         if (req.wabsEndpoint === 'auth/cas') {
             let auth = decodeWabAuthCookie(req, eSecret);
 
+            // missing redirect in the query
+            if (!req.query.redirect) {
+                res.sendStatusView(400);
+
             // CAS verified login and refresh token exists
-            if (req.query.ticket && req.query.redirect && auth && auth.refreshToken) {
-                oauth.getAccessTokenFromRefreshToken(cKey, cSecret, wkUrl, auth.refreshToken, function (err, data) {
-                    if (err) return next(err);
+            } else if (req.query.ticket && auth && auth.refreshToken) {
+                let redirectUrl = getRedirectUrl(req, 'oauth-code');
+                req.query.redirect = getQueryParameter(req.query.redirect, 'redirect') || '/';
+                refresh(req, res, next, cKey, cSecret, wkUrl, auth.refreshToken, redirectUrl, eSecret);
 
-                    // unable to refresh so redirect to login
-                    if (data.error) {
-                        login(req, res, next, cKey, cSecret, wkUrl, getRedirectUrl(req) + 'oauth-code');
+            // CAS verified login but no refresh token
+            } else if (req.query.ticket) {
+                req.query.redirect = getQueryParameter(req.query.redirect, 'redirect') || '/';
+                login(req, res, next, cKey, cSecret, wkUrl, getRedirectUrl(req, 'oauth-code'));
 
-                    // store cookie and redirect
-                    } else {
-                        encodeWabAuthCookie(res, eSecret, data);
-                        res.cookie('wabs-auth-stage', authStage.authorized);
-                        res.redirect(req.query.redirect);
-                    }
-                });
-
-            // CAS user not logged in or no refresh token exists
+            // CAS did not verify login
             } else {
-                login(req, res, next, cKey, cSecret, wkUrl, getRedirectUrl(req) + 'oauth-code');
+                let url = encodeURIComponent(getRedirectUrl(req, 'cas?redirect=' + req.url));
+                res.redirect('https://cas.byu.edu/cas/login?service=' + url);
             }
 
-        // handle oauth login request
+        // client oauth login request
         } else if (req.wabsEndpoint === 'auth/login') {
-            login(req, res, next, cKey, cSecret, wkUrl, getRedirectUrl(req) + 'oauth-code');
+            login(req, res, next, cKey, cSecret, wkUrl, getRedirectUrl(req, 'oauth-code'));
 
-        // handle oauth login code response
+        // oauth response code redirects to here
         } else if (req.wabsEndpoint === 'auth/oauth-code') {
-            code(req, res, next, cKey, cSecret, wkUrl, getRedirectUrl(req) + 'oauth-code', eSecret);
+            code(req, res, next, cKey, cSecret, wkUrl, getRedirectUrl(req, 'oauth-code'), eSecret);
 
         // handle the refresh token to get latest authorization code
         } else if (req.wabsEndpoint === 'auth/oauth-refresh' && req.query.code) {
-            gateway(req, res, next, cKey, cSecret, wkUrl, getRedirectUrl(req) + 'oauth-code', eSecret);
+            let refreshToken = decrypt(eSecret, req.query.code);
+            gateway(req, res, cKey, cSecret, wkUrl, refreshToken, eSecret);
 
         // verify authentication which app root load
-        } else if (!req.wabsEndpoint && req.isAppRoot && stats.authMode(req.filePath) === 'always') {
+        } else if (!req.wabsEndpoint && req.isAppRoot && req.authMode === 'always') {
 
             // authorization was denied
             if (req.cookies['wabs-auth-stage'] === authStage.notAuthorized) {
@@ -87,7 +91,7 @@ function Authenticate(config, stats) {
 
             // authentication and authorization needed
             } else {
-                let url = encodeURIComponent(getRedirectUrl(req) + 'cas?redirect=' + req.url);
+                let url = encodeURIComponent(getRedirectUrl(req, 'cas?redirect=' + req.url));
                 res.redirect('https://cas.byu.edu/cas/login?service=' + url + '&gateway=true');
             }
 
@@ -101,15 +105,16 @@ Authenticate.options = {
     authenticate: {
         alias: 'a',
         description: 'Specify the level of authentication support. Valid values include "none", "manual", "always". \n\n' +
-            chalk.bold.cyan('none') + ': Will not provide authentication support.\n\n' +
-            chalk.bold.cyan('manual') + ': Will provide authentication support that must be manually triggered using ' +
-            'the ' + chalk.underline('/wabs/login') + ' and ' + chalk.underline('/wabs/logout') + ' endpoints. (Note ' +
-            'that those endpoints may be modified by the ' + chalk.italic('--endpoint') + ' option.\n\n' +
-            chalk.bold.cyan('always') + ': Will force the user to be logged in to use any part of the application.',
+            chalk.bold.green('none') + ': Will not provide authentication support and all other authentication ' +
+            'options will be ignored.\n\n' +
+            chalk.bold.green('manual') + ': Will provide authentication support that must be manually triggered using ' +
+            'the global javascript functions ' + chalk.italic('byu.auth.login') + ', ' + chalk.italic('byu.auth.logout') +
+            ', and ' + chalk.italic('byu.auth.refresh') + '.\n\n' +
+            chalk.bold.green('always') + ': Will force the user to be logged in to use any part of the application.',
         type: String,
         transform: (v) => v.toLowerCase(),
         validate: (v) => ['none', 'manual', 'always'].indexOf(v.toLowerCase()) !== -1,
-        defaultValue: 'always',
+        defaultValue: 'none',
         group: 'auth'
     },
     consumerKey: {
@@ -117,6 +122,7 @@ Authenticate.options = {
         description: 'The consumer key from the application defined in WSO2. This value must be set if the ' +
             chalk.italic('--authenticate') + ' option is set to either "manual" or "always".',
         type: String,
+        //required: opts => options.authenticate !== 'none',
         group: 'auth'
     },
     consumerSecret: {
@@ -143,14 +149,84 @@ Authenticate.options = {
     }
 };
 
+function analyzeOauthError(data) {
+    var description;
+    var title;
+    var url = '';
 
+    switch(data.error) {
+        case 'invalid_request':
+            title = 'Invalid Request';
+            description = 'The OAuth request is malformed.';
+            break;
+        case 'invalid_client':
+            title = 'Invalid Client';
+            description = 'OAuth client authentication failed.';
+            break;
+        case 'invalid_grant':
+            title = 'Invalid OAuth Token';
+            description = 'The OAuth token is invalid, expired, or revoked.';
+            break;
+        case 'unauthorized_client':
+            title = 'Unauthorized Client';
+            description = 'The client is not authorized to use the authorization grant type.';
+            break;
+        case 'unsupported_grant_type':
+            title = 'Unsupported Grant Type';
+            description = 'The server does not support this grant type.';
+            break;
+        case 'invalid_scope':
+            title = 'Invalid Scope';
+            description = 'The requested scope is invalid.';
+            break;
+        default:
+            title = 'Unexpected Error';
+            description = data.error;
+    }
 
+    if (data.error_description) description = data.error_description;
+    if (data.error_uri) url = data.error_uri;
+
+    return {
+        title: title,
+        description: description,
+        url: url
+    };
+}
+
+/**
+ * Use an OAuth code to get the access tokens and other data.
+ * @param {object} req The request object.
+ * @param {object} res The response object.
+ * @param {function} next The next middleware function.
+ * @param {string} cKey The client key
+ * @param {string} cSecret The client secret.
+ * @param {string} wkUrl The well known URL.
+ * @param {string} redirectURI The redirect URL.
+ * @param {string} eSecret The secret to encode the refresh token.
+ */
 function code(req, res, next, cKey, cSecret, wkUrl, redirectURI, eSecret) {
+    var state;
+
+    // attempt to build the redirect URL
+    if (req.query.state) {
+        try {
+            state = decodeURIComponent(req.query.state);
+            state = JSON.parse(state);
+        } catch (e) {
+            console.error(e.stack);
+        }
+    }
+
+    // malformed request
+    if (!state) {
+        res.sendStatusView(400);
 
     // if a code wasn't provided then access was denied
-    if (!req.query.code) {
+    } else if (!req.query.code) {
         res.cookie('wabs-auth-stage', authStage.notAuthorized);
-        res.redirect(decodeURIComponent(req.query.state));
+        res.redirect(state.redirect);
+
     } else {
         oauth.getAccessTokenFromAuthorizationCode(cKey, cSecret, wkUrl, req.query.code, redirectURI, function(err, data) {
             if (err) {
@@ -166,7 +242,7 @@ function code(req, res, next, cKey, cSecret, wkUrl, redirectURI, eSecret) {
                 };
                 res.cookie('wabs-auth-stage', authStage.authorized);
                 res.cookie('wabs-auth', JSON.stringify(auth));
-                res.redirect(decodeURIComponent(req.query.state));
+                res.redirect(state.redirect);
             }
         });
     }
@@ -203,6 +279,7 @@ function decrypt(secret, text){
  * @param {object} res
  * @param {string} eSecret
  * @param {object} data
+ * @returns {object} The encoded cookie object (before encoding)
  */
 function encodeWabAuthCookie(res, eSecret, data) {
     var auth = {
@@ -213,6 +290,7 @@ function encodeWabAuthCookie(res, eSecret, data) {
         status: ''
     };
     res.cookie('wabs-auth', JSON.stringify(auth));
+    return auth;
 }
 
 /**
@@ -233,14 +311,104 @@ function decodeWabAuthCookie(req, eSecret) {
     return null;
 }
 
+/**
+ * Perform a refresh that will simply return whether the refresh worked or not.
+ * @param {object} req The request object.
+ * @param {object} res The response object.
+ * @param {string} cKey The client key
+ * @param {string} cSecret The client secret.
+ * @param {string} wkUrl The well known URL.
+ * @param {string} refreshToken The decoded refresh token.
+ * @param {string} eSecret The secret to encode the refresh token with.
+ */
+function gateway(req, res, cKey, cSecret, wkUrl, refreshToken, eSecret) {
+    oauth.getAccessTokenFromRefreshToken(cKey, cSecret, wkUrl, refreshToken, function (err, data) {
+        if (err) return next(err);
+
+        // if there is an error then send the error
+        if (data.error) {
+            let err = analyzeOauthError(data);
+            res.json({ error: err });
+
+        // send the data
+        } else {
+            let authData = encodeWabAuthCookie(res, eSecret, data);
+            authData.error = null;
+            res.json(authData);
+        }
+    });
+}
+
+/**
+ * Get a query parameter off of a URL
+ * @param url
+ * @param name
+ * @returns {string, undefined}
+ */
+function getQueryParameter(url, name) {
+    var i;
+    var params = (url.split('?')[1] || '').split('&');
+    var pair;
+    for (i = 0; i < params.length; i++) {
+        pair = params[i].split('=');
+        if (pair[0] === name) return pair[1];
+    }
+}
+
+/**
+ * Begin the OAuth login process.
+ * @param {object} req The request object.
+ * @param {object} res The response object.
+ * @param {function} next The next middleware function.
+ * @param {string} key The client key
+ * @param {string} secret The client secret.
+ * @param {string} wkUrl The well known URL.
+ * @param {string} redirectURI The redirect URL.
+ */
 function login(req, res, next, key, secret, wkUrl, redirectURI) {
+    const state = { brownie: res.wabs.brownie, redirect: req.query.redirect || '/' };
     const reqConfig = {
         redirect_uri: redirectURI,
         scope: 'openid',
-        state: encodeURIComponent(req.query.redirect || '/')
+        state: encodeURIComponent(JSON.stringify(state))
     };
     oauth.generateAuthorizationCodeRequestURL(key, secret, wkUrl, reqConfig, function (err, url) {
         if (err) return next(err);
         res.redirect(url);
+    });
+}
+
+/**
+ * Use the refresh token to get a new access token.
+ * @param {object} req The request object.
+ * @param {object} res The response object.
+ * @param {function} next The next function.
+ * @param {string} cKey The client key
+ * @param {string} cSecret The client secret.
+ * @param {string} wkUrl The well known URL.
+ * @param {string} refreshToken The encrypted refresh token to use.
+ * @param {string} redirectUrl The URL to direct back to after refresh.
+ * @param {string} eSecret The secret to encode the refresh token.
+ */
+function refresh(req, res, next, cKey, cSecret, wkUrl, refreshToken, redirectUrl, eSecret) {
+    oauth.getAccessTokenFromRefreshToken(cKey, cSecret, wkUrl, refreshToken, function (error, data) {
+        if (error && error.data) error.data = JSON.parse(error.data);
+
+        // refresh token expired so redirect to login
+        if (error && error.data && error.data.error === 'invalid_grant') {
+            login(req, res, next, cKey, cSecret, wkUrl, redirectUrl);
+
+        // if another error then send a status view with details about the error
+        } else if (error && error.data && error.data.error) {
+            let err = analyzeOauthError(error);
+            let body = err.description;
+            if (err.url) body += '<br><a href="' + err.url + '" target="_blank">More Details...</a>';
+            res.sendStatusView(500, err.title, body);
+
+        // store auth stage cookie and redirect
+        } else {
+            res.cookie('wabs-auth-stage', authStage.authorized);
+            res.redirect(req.query.redirect);
+        }
     });
 }

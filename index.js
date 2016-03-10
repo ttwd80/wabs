@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 "use strict";
-const brownie       = require('./bin/brownie');
+//const brownie       = require('./bin/brownie');
 const Command       = require('command-line-callback');
 const server        = require('./bin/server');
 

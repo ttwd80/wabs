@@ -17,12 +17,30 @@ module.exports = function(req, res, next) {
     var bytes = 0;
     var date = new Date();
     var received = date.toISOString();
+    //var redirect = res.redirect;
     var sendStart;
     var start = +date;
     var write = res.write;
 
     // add a unique ID to the request
     req.id = uniqueId();
+
+    // overwrite the redirect function
+    /*res.redirect = function(url) {
+        var totalBytes = getMetric(res._header ? res._header.length : 0);
+        var diff = '' + ((Date.now() - start) / 1000);
+        if (!/\./.test(diff)) diff += '.0';
+
+        console.log(
+            req.id + ' : ' +
+            chalk.magenta(received) + ' : ' +
+            chalk.cyan(307) + ' : ' +
+            chalk.green(totalBytes.value + ' ' + totalBytes.unit + 'B') + ' : ' +
+            chalk.yellow(addCharacters(diff, '0', true, 5)) + ' : ' +
+            chalk.blue(url)
+        );
+        redirect.apply(res, arguments);
+    };*/
 
     // keep track of how many bytes are being written
     res.write = function(chunk) {
