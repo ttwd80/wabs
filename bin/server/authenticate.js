@@ -15,7 +15,7 @@ const authStage = {
 };
 
 function Authenticate(config, stats) {
-    if (config.auth === 'none') return noop;
+    if (config.authenticate === 'none') return noop;
 
     //check that each required property is set
     ['consumerKey', 'consumerSecret', 'encryptSecret', 'wellKnownUrl'].forEach(function(key) {
