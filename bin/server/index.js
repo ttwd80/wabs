@@ -160,7 +160,7 @@ Command.define('server', Server, {
                 'then your client application will automatically get access to a few additional tools:\n\n' +
 
                 chalk.bold.underline('HTML Meta Tags') + '\n\n' +
-                'Set the authenticate mode within the page to either "manual" or "always" using ' +
+                'Set the authenticate mode within the HTML page to either "manual" or "always" using ' +
                 chalk.italic('<meta name="wabs-auth" content="manual">') + ' or ' +
                 chalk.italic('<meta name="wabs-auth" content="always">') + '\n\n' +
                 'Set the authentication auto refresh using ' +
@@ -195,7 +195,7 @@ Command.define('server', Server, {
                 'client after logout. If not specified then the client will be redirected to the current page. ' +
                 'If set to false then no redirect will occur \n\n' +
 
-                chalk.bold('refresh()') + ' - A function that will refresh the OAuth access token. This function takes ' +
+                chalk.bold('refresh([callback])') + ' - A function that will refresh the OAuth access token. This function takes ' +
                 'an optional callback function as a parameter and the callback will be called and sent null on success ' +
                 'or an Error object on failure.\n\n' +
 
@@ -221,9 +221,9 @@ Command.define('server', Server, {
                 chalk.bold('get([key])') + ' - A function to get a brownie value with the key that is specified as the ' +
                 'first parameter. If the key is omitted then you will get back a copy of the entire brownie data object.\n\n' +
 
-                chalk.bold('navigateTo') + ' - A function to navigate to a URL and if that URL is a legacy app then send the ' +
-                'legacy app the brownie data. This function will automatically be called if the brownie mode is set to ' +
-                '"always" and a link is clicked that points to a legacy application.\n\n' +
+                chalk.bold('navigateTo(url [, target]') + ' - A function to navigate to a URL and if that URL is a ' +
+                'legacy app then send the legacy app the brownie data. This function will automatically be called if ' +
+                'the brownie mode is set to "always" and a link is clicked that points to a legacy application.\n\n' +
 
                 chalk.bold('set(key, value)') + ' - A function to set a brownie property to a value. The first parameter is the ' +
                 'key and the second parameter is the value.\n\n' +
