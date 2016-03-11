@@ -51,7 +51,7 @@
     "brownie"
   ],
   "author": "James Speirs",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/BYU-OIT/wabs/issues"
   },
