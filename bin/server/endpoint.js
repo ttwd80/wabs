@@ -61,7 +61,7 @@ function evaluateSrc(src, defaultWatch) {
     }
 
     // normalize the endpoint
-    endpoint = Endpoint.normalize(endpoint);
+    endpoint = exports.normalize(endpoint);
 
     return {
         endpoint: endpoint,
