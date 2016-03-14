@@ -104,26 +104,4 @@ describe('endpoint', function() {
 
     });
 
-    describe('#directories', function() {
-
-        it('no duplicates', function() {
-            var config = { src: [ '/foo' ] };
-            var actual = endpoint.directories(config);
-            expect(actual).to.be.deep.equal(['/foo']);
-        });
-
-        it('exact duplicate', function() {
-            var config = { src: [ '/foo', '/foo' ] };
-            var actual = endpoint.directories(config);
-            expect(actual).to.be.deep.equal(['/foo']);
-        });
-
-        it('child duplicate', function() {
-            var config = { src: [ '/foo', '/foo/bar' ] };
-            var actual = endpoint.directories(config);
-            expect(actual).to.be.deep.equal(['/foo']);
-        });
-
-    });
-
 });

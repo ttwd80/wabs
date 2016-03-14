@@ -1,57 +1,12 @@
 "use strict";
 const path              = require('path');
 
-module.exports = Endpoint;
-
-function Endpoint(config) {
-    var map = Endpoint.map(config);
-
-    // throw an error if the config.endpoint matches a src endpoint
-    if (map.hasOwnProperty(config.endpoint)) throw Error('Reserved server endpoint conflicts with src endpoint.');
-
-    // return the middleware
-    return function (req, res, next) {
-        next();
-    };
-}
-
-/**
- * Get a list of all unique directories from the configuration src.
- * @param {object} config
- * @returns {string[]}
- */
-Endpoint.directories = function(config) {
-    var unfilteredResults = [];
-
-    // get all local source directories
-    config.src.forEach(function(src) {
-        var o = evaluateSrc(src, config.watch);
-        if (!o.proxy && unfilteredResults.indexOf(o.source) === -1) unfilteredResults.push(o.source);
-    });
-
-    // clean up results - removing duplicates, including duplicates via child directories
-    return unfilteredResults.filter(function(filePath, index) {
-        var i;
-        var len;
-        var parts = filePath.split(path.sep);
-        var str;
-
-        for (len = parts.length - 1; len >= 0; len--) {
-            str = parts.slice(0, len).join(path.sep);
-            i = unfilteredResults.indexOf(str);
-            if (i !== -1 && i !== index) return false;
-        }
-
-        return true;
-    });
-};
-
 /**
  * Generate an endpoint map the maps endpoints to sources.
  * @param {object} config
  * @returns {object}
  */
-Endpoint.map = function(config) {
+exports.map = function(config) {
     var map = {};
 
     // build file system maps for all sources
@@ -68,7 +23,7 @@ Endpoint.map = function(config) {
  * @param {string} endpoint
  * @returns {string}
  */
-Endpoint.normalize = function(endpoint) {
+exports.normalize = function(endpoint) {
     return '/' + endpoint.replace(/^\//, '').replace(/\/$/, '');
 };
 
