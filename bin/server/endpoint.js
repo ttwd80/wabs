@@ -6,23 +6,20 @@ module.exports = Endpoint;
 function Endpoint(config) {
     var map = Endpoint.map(config);
 
-    return function (req, res, next) {
+    // throw an error if the config.endpoint matches a src endpoint
+    if (map.hasOwnProperty(config.endpoint)) throw Error('Reserved server endpoint conflicts with src endpoint.');
 
+    // return the middleware
+    return function (req, res, next) {
+        next();
     };
 }
 
-Endpoint.map = function(config) {
-    var map = {};
-
-    // build file system maps for all sources
-    config.src.forEach(function (src) {
-        var o = evaluateSrc(src, config.watch);
-        map[o.endpoint] = o;
-    });
-
-    return map;
-};
-
+/**
+ * Get a list of all unique directories from the configuration src.
+ * @param {object} config
+ * @returns {string[]}
+ */
 Endpoint.directories = function(config) {
     var unfilteredResults = [];
 
@@ -33,7 +30,6 @@ Endpoint.directories = function(config) {
     });
 
     // clean up results - removing duplicates, including duplicates via child directories
-    unfilteredResults.sort(comparePathLength);
     return unfilteredResults.filter(function(filePath, index) {
         var i;
         var len;
@@ -50,17 +46,37 @@ Endpoint.directories = function(config) {
     });
 };
 
-function comparePathLength(a, b) {
-    var lenA = a.split(path.sep);
-    var lenB = b.split(path.sep);
-    return lenA > lenB ? 1 : -1;
-}
+/**
+ * Generate an endpoint map the maps endpoints to sources.
+ * @param {object} config
+ * @returns {object}
+ */
+Endpoint.map = function(config) {
+    var map = {};
+
+    // build file system maps for all sources
+    config.src.forEach(function (src) {
+        var o = evaluateSrc(src, config.watch);
+        map[o.endpoint] = o;
+    });
+
+    return map;
+};
+
+/**
+ * Take an endpoint and normalize it to start with a slash and not end with a slash.
+ * @param {string} endpoint
+ * @returns {string}
+ */
+Endpoint.normalize = function(endpoint) {
+    return '/' + endpoint.replace(/^\//, '').replace(/\/$/, '');
+};
 
 /**
  * Evaluate an src string to determine what the endpoint, watch, and src paths are
  * @param {string} src
  * @param {boolean} defaultWatch
- * @returns {{endpoint: string, src: string, watch: boolean}}
+ * @returns {{endpoint: string, proxy: boolean, source: string, watch: boolean}}
  */
 function evaluateSrc(src, defaultWatch) {
     var endpoint;
@@ -90,7 +106,7 @@ function evaluateSrc(src, defaultWatch) {
     }
 
     // normalize the endpoint
-    endpoint = '/' + endpoint.replace(/^\//, '').replace(/\/$/, '');
+    endpoint = Endpoint.normalize(endpoint);
 
     return {
         endpoint: endpoint,
