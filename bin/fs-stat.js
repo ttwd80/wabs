@@ -162,6 +162,7 @@ function staticMap(src, endpoint, store) {
  * @returns {object}
  */
 function statStore() {
+    var rxIndexHtml = /^index\.html?$/i;
     var rxHtml = /\.html?$/i;
     var store = {
         endpoints: {},
@@ -243,7 +244,7 @@ function statStore() {
                 if (stats.count === 0) {
                     delete store.files[filePath];
                     removeEndpoint(key, filePath);
-                    if (rxHtml.test(filePath)) removeEndpoint(path.dirname(key), filePath);
+                    if (rxIndexHtml.test(path.basename(filePath))) removeEndpoint(path.dirname(key), filePath);
                 }
             }
         },
@@ -290,7 +291,7 @@ function statStore() {
                     store.files[filePath] = stats;
                     key = path.resolve(endpoint, relative);
                     setEndpoint(key, filePath);
-                    setEndpoint(path.dirname(key), filePath);
+                    if (rxIndexHtml.test(path.basename(key))) setEndpoint(path.dirname(key), filePath);
                 });
         }
     }
