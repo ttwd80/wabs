@@ -1,5 +1,4 @@
 "use strict";
-const favicon       = require('express-favicon');
 
 module.exports = function(stats) {
     return function(req, res, next) {
