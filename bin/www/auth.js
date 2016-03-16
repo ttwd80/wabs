@@ -58,15 +58,15 @@
     });
 
     /**
-     * Perform a login.
+     * Perform a login of CAS and OAuth.
      */
     auth.login = function() {
         var location = window.location.toString();
-        window.location = byu.wabs.endpoint + '/auth/login?redirect=' + encodeURIComponent(location);
+        window.location = byu.wabs.services['oauth.login'].url + '?redirect=' + encodeURIComponent(location);
     };
 
     /**
-     * Perform a log out.
+     * Perform a log out of OAuth and optionally CAS.
      * @params {boolean} [casLogout=true]
      * @params {boolean, string} [redirect=window.location.toString()]
      */
@@ -110,7 +110,7 @@
     auth.refresh = function(callback) {
         if (arguments.length === 0) callback = function() {};
         if (auth.refreshToken) {
-            ajaxGet(byu.wabs.endpoint + '/auth/oauth-refresh?code=' + auth.refreshToken, function(status, text) {
+            ajaxGet(byu.wabs.services['oauth.refresh'].url + '?code=' + auth.refreshToken, function(status, text) {
                 var data;
                 if (status === 200) {
                     data = JSON.parse(text);

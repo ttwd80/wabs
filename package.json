@@ -23,7 +23,6 @@
     "cookie-parser": "^1.4.1",
     "custom-error-instance": "^2.1.1",
     "express": "^4.13.4",
-    "express-favicon": "^1.0.1",
     "fs-map": "^1.0.0",
     "http-status-codes": "^1.0.6",
     "on-finished": "^2.3.0",

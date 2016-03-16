@@ -1,7 +1,6 @@
 (function() {
     var brownie = {};
     var encodeNeeded = false;
-    var endpoint = byu.wabs.endpoint;
     var isCFrameworkRx = /^https?:\/\/y(?:-[a-z]*)?\.byu.edu\/(?:[\s\S]*?)\.cgi[\/\?]?/i;
     var store = {};
 
@@ -46,7 +45,7 @@
         form.setAttribute('action', url);
         if (isCFrameworkRx.test(url)) {
             if (encodeNeeded) {
-                ajaxPut(endpoint + '/brownie/encode', store, function(status, data) {
+                ajaxPut(byu.wabs.services['brownie.encode'].url, store, function(status, data) {
                     if (status === 200) form.appendChild(createFormInput('brownie', data));
                     form.submit();
                 });

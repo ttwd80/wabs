@@ -1,12 +1,12 @@
 "use strict";
 const authenticate  = require('./authenticate');
-const bodyParser    = require('body-parser');
 const brownie       = require('./brownie');
 const chalk         = require('chalk');
 const Command       = require('command-line-callback');
 const compression   = require('compression');
 const cookieParser  = require('cookie-parser');
 const error         = require('./error');
+const endpoint      = require('./endpoint');
 const express       = require('express');
 const favicon       = require('./favicon');
 const injector      = require('./injector');
@@ -14,6 +14,7 @@ const log           = require('./log');
 const fsStat        = require('../fs-stat');
 const path          = require('path');
 const Promise       = require('bluebird');
+const proxy         = require('./proxy');
 const request       = require('request');
 const staticEp      = require('./static');
 const statusView    = require('./view');
@@ -25,51 +26,51 @@ module.exports = Server;
  * @params {object} config
  **/
 function Server(config) {
-    var cFrameworkFormParser;
-    var proxy;
-    var srcPromise;
+    const endpointMap = endpoint.map(config);
 
-    // make sure that the endpoint starts with a slash
-    config.endpoint = '/' + config.endpoint.replace(/^\//, '');
+    // normalize the endpoint
+    config.endpoint = endpoint.normalize(config.endpoint);
 
-    // define the urlEncoded parser middleware that will be used to parse POST data from the c-framework
-    cFrameworkFormParser = bodyParser.urlencoded({
-        extended: false,
-        type: '*/x-www-form-urlencoded'
-    });
-
-    // determine whether the src is a separate static file server or a local file system
-    if (/^https:\/\//.test(config.src)) {
-        config.proxy = true;
-        console.log('Serving files from: ' + config.src);
-        srcPromise = Promise.resolve();
-    } else {
-        config.proxy = false;
-        config.src = path.resolve(process.cwd(), config.src);
-        console.log('Serving files from: ' + config.src);
-        srcPromise = fsStat(config);
-    }
-
-    return srcPromise
+    // start file system mapping
+    return fsStat(config, endpointMap)
         .then(function(stats) {
             var app;
+            var mid;
+
+            // set up the middleware
+            mid = {
+                authenticate:   authenticate(config, stats),
+                brownie:        brownie(config),
+                compression:    compression({}),
+                cookieParser:   cookieParser(),
+                error:          error,
+                favicon:        favicon(stats),
+                init:           init(config, endpointMap, stats),
+                injector:       injector(config),
+                log:            log(),
+                proxy:          proxy(),
+                static:         staticEp(config, stats),
+                statusView:     statusView(config),
+                unhandled:      unhandled
+            };
 
             // create the express app
             app = express();
 
             // add middleware
-            app.use(log);                           // logging
-            app.use(compression({}));               // gzip
-            app.use(favicon(config, stats));        // favicon
-            app.use(init(config, stats));           // response setup
-            app.use(cookieParser());                // cookies
-            app.use(statusView(config));            // status code views
-            app.use(brownie(config));               // brownie
-            app.use(authenticate(config, stats));   // oAuth
-            app.use(injector(config));              // injector
-            app.use(staticEp(config, stats));       // static files
-            app.use(unhandled);                     // handle unhandled requests
-            app.use(error);                         // error catching
+            app.use(mid.log);           // logging              - set up log summary
+            app.use(mid.compression);   // gzip                 - gzip sent responses
+            app.use(mid.init);          // setup                - initialize req.wabs and res.wabs objects
+            app.use(mid.favicon);       // favicon              - send favicon when there is a request for one
+            app.use(mid.cookieParser);  // cookies              - parse cookies
+            app.use(mid.statusView);    // status code views    - define res.sendStatusView()
+            app.use(mid.brownie);       // brownie              - define brownie service endpoints, handle posted brownie data
+            app.use(mid.proxy);         // proxy                - get proxied content, analyze and process html
+            app.use(mid.authenticate);  // auth                 - authentication and authorization
+            app.use(mid.injector);      // injector             - define res.sendInjected() and add wabs.js endpoint
+            app.use(mid.static);        // static files         - send the static file content
+            app.use(mid.unhandled);     // unhandled            - send status page for unhandled requests
+            app.use(mid.error);         // error catching       - middleware errors encountered so send 500 status page
 
             // start the server listening on a port
             return startServer(app, config.port);
@@ -94,10 +95,16 @@ Server.options = {
     },
     src: {
         alias: 's',
-        description: 'This can be either a URL to proxy requests to or a file system directory containing ' +
-        'the static files to serve.',
+        description: 'Specify a source to serve files from. This can be either a file system path or the URL for ' +
+            'another server to proxy requests for. You can also optionally specify the endpoint from which those ' +
+            'resources should be available by specifying the path followed by ":" followed by the endpoint. ' +
+            'If the endpoint is not specified then "/" is assumed.\n\n' +
+            chalk.bold('Example: Proxy with Default Endpoint:') + '\n--src http://someserver.com/\n\n' +
+            chalk.bold('Example: Local path Default Endpoint:') + '\n--src ./src-directory\n\n' +
+            chalk.bold('Example: Multiple:') + '\n--src ./src:/ --src ./bower-components:/components --src http://someserver.com/:/proxy',
         type: String,
-        defaultValue: './',
+        multiple: true,
+        defaultValue: '/:./',
         group: 'server'
     },
     statusView: {
@@ -264,27 +271,68 @@ function unhandled(req, res, next) {
     }
 }
 
-function init(config, stats) {
+/**
+ * Get middleware that will augment the request object.
+ * @param {object} config The application configuration object.
+ * @param {object} endpointMap The endpoint map object.
+ * @param {object} stats The file stats object.
+ * @returns {Function}
+ */
+function init(config, endpointMap, stats) {
+    var endpointKeys = Object.keys(endpointMap);
+
+    // sort endpoint keys by path length, longest first
+    endpointKeys.sort(function(a, b) {
+        var lenA = a.split('/').length;
+        var lenB = b.split('/').length;
+        return lenA > lenB ? -1 : 1;
+    });
+
+    function getEndpointObject(url) {
+        var i;
+        var key;
+        for (i = 0; i < endpointKeys.length; i++) {
+            key = endpointKeys[i];
+            if (url.indexOf(key) === 0) return endpointMap[key];
+        }
+        return null;
+    }
+
     return function(req, res, next) {
-        var filePath = path.resolve(config.src, req.url.substr(1).split('?')[0]);
+        var urlPath = endpoint.normalize(req.url.split('#')[0].split('?')[0]);
+        var match = getEndpointObject(urlPath);
 
-        // if the file path is a directory then try to get the index file path for that directory
-        if (stats.isDirectory(filePath)) filePath = stats.getIndexFilePath(filePath);
-        req.filePath = filePath;
+        // add wabs object to request and response objects
+        req.wabs = {
+            authMode: config.authenticate,
+            brownie: null,
+            content: null,
+            endpoint: false,
+            filePath: false,
+            headers: [],
+            inject: false,
+            proxy: false,
+            type: null,
+            url: req.protocol + '://' + req.get('host') + urlPath
+        };
 
-        // determine if the file is an app root file
-        req.isAppRoot = stats.isAppRoot(filePath);
+        // determine the wabs endpoint if it exists
+        if (req.url.indexOf(config.endpoint) === 0) {
+            req.wabs.endpoint = req.url.split('?')[0]
+                .substr(config.endpoint.length)
+                .replace(/^\//, '')
+                .replace(/\/$/, '');
 
-        // set the auth mode
-        req.authMode = stats.authMode(req.filePath);
+        } else if (match && match.proxy) {
+            req.wabs.proxy = match.source + '/' + path.relative(match.endpoint, urlPath);
 
-        // set whether the request is a wabs endpoint
-        req.wabsEndpoint = req.url.indexOf(config.endpoint) === 0 ?
-            req.url.split('?')[0].substr(config.endpoint.length).replace(/^\//, '').replace(/\/$/, '') :
-            false;
-
-        // initialize response wabs object
-        res.wabs = {};
+        } else if (match) {
+            req.wabs.fsStat = stats.get(urlPath);
+            if (req.wabs.fsStat.stats.html) {
+                req.wabs.content = req.wabs.fsStat.stats.html;
+                req.wabs.inject = true;
+            }
+        }
 
         next();
     };

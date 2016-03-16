@@ -1,6 +1,7 @@
 "use strict";
 const cheerio           = require('cheerio');
 const path              = require('path');
+const services          = require('./services');
 const uglify            = require('uglify-js');
 
 module.exports = injector;
@@ -37,11 +38,11 @@ function injector(config) {
             // add additional data to the brownie
             data.brownie = {
                 mode: config.brownie === 'always' ? 'auto' : 'manual',
-                store: res.wabs.brownie || null
+                store: req.wabs.brownie
             };
 
             // modify the html
-            html = replaceWithMeta(html, { endpoint: config.endpoint, auth: config.authenticate, brownie: config.brownie }, 'wabs-data');
+            html = replaceWithMeta(html, { endpoint: config.endpoint, auth: config.authenticate, brownie: config.brownie, services: services.get() }, 'wabs-data');
             html = replaceWithMeta(html, config.brownie !== 'none' ? data.brownie : '', 'wabs-brownie-data');
             html = html.replace('<!-- wabs-script -->', script);
 

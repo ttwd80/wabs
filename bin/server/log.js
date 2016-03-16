@@ -9,71 +9,68 @@ const uniqueId      = require('../unique-id');
 
 /**
  * Middleware function for logging request and response data.
- * @param req
- * @param res
- * @param next
  */
-module.exports = function(req, res, next) {
-    var bytes = 0;
-    var date = new Date();
-    var received = date.toISOString();
-    //var redirect = res.redirect;
-    var sendStart;
-    var start = +date;
-    var write = res.write;
+module.exports = function() {
+    return function(req, res, next) {
+        var bytes = 0;
+        var date = new Date();
+        var logged = false;
+        var received = date.toISOString();
+        var redirect = res.redirect;
+        var sendStart;
+        var start = +date;
+        var write = res.write;
 
-    // add a unique ID to the request
-    req.id = uniqueId();
+        // add a unique ID to the request
+        req.id = uniqueId();
 
-    // overwrite the redirect function
-    /*res.redirect = function(url) {
-        var totalBytes = getMetric(res._header ? res._header.length : 0);
-        var diff = '' + ((Date.now() - start) / 1000);
-        if (!/\./.test(diff)) diff += '.0';
+        res.logCompleted = function() {
+            if (logged) return;
+            logged = true;
 
-        console.log(
-            req.id + ' : ' +
-            chalk.magenta(received) + ' : ' +
-            chalk.cyan(307) + ' : ' +
-            chalk.green(totalBytes.value + ' ' + totalBytes.unit + 'B') + ' : ' +
-            chalk.yellow(addCharacters(diff, '0', true, 5)) + ' : ' +
-            chalk.blue(url)
-        );
-        redirect.apply(res, arguments);
-    };*/
+            var diff;
+            var headerBytes = res._header ? res._header.length : 0;
+            var load;
+            var totalBytes = getMetric(bytes + headerBytes);
 
-    // keep track of how many bytes are being written
-    res.write = function(chunk) {
-        bytes += chunk.length;
-        write.apply(res, arguments);
+            // get the number of bytes and processing time
+            diff = '' + ((Date.now() - start) / 1000);
+            if (!/\./.test(diff)) diff += '.0';
+
+            console.log(
+                req.id + ' : ' +
+                chalk.magenta(received) + ' : ' +
+                chalk.cyan(res.statusCode) + ' : ' +
+                chalk.green(totalBytes.value + ' ' + totalBytes.unit + 'B') + ' : ' +
+                chalk.yellow(addCharacters(diff, '0', true, 5)) + ' : ' +
+                chalk.blue(req.url)
+            );
+        };
+
+        // overwrite the redirect function
+        res.redirect = function(url) {
+            res.statusCode = 307;
+            redirect.apply(res, arguments);
+            res.logCompleted();
+        };
+
+        // keep track of how many bytes are being written
+        res.write = function(chunk) {
+            bytes += chunk.length;
+            write.apply(res, arguments);
+        };
+
+        onHeaders(res, function() {
+            sendStart = Date.now() - start;
+        });
+
+        onFinished(res, function(err, res) {
+            res.logCompleted();
+        });
+
+        next();
     };
-
-    onHeaders(res, function() {
-        sendStart = Date.now() - start;
-    });
-
-    onFinished(res, function(err, res) {
-        var diff;
-        var headerBytes = res._header ? res._header.length : 0;
-        var load;
-        var totalBytes = getMetric(bytes + headerBytes);
-
-        // get the number of bytes and processing time
-        diff = '' + ((Date.now() - start) / 1000);
-        if (!/\./.test(diff)) diff += '.0';
-
-        console.log(
-            req.id + ' : ' +
-            chalk.magenta(received) + ' : ' +
-            chalk.cyan(res.statusCode) + ' : ' +
-            chalk.green(totalBytes.value + ' ' + totalBytes.unit + 'B') + ' : ' +
-            chalk.yellow(addCharacters(diff, '0', true, 5)) + ' : ' +
-            chalk.blue(req.url)
-        );
-    });
-
-    next();
-};
+}
 
 function getMetric(value) {
     var index = 0;

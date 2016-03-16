@@ -1,5 +1,7 @@
 (function() {
     var byu = {};
+    var content;
+    var element;
     var match;
     var temp;
 
@@ -20,5 +22,7 @@
     });
 
     // store wabs data on the byu object
-    window.byu.wabs = JSON.parse(decodeURIComponent(document.querySelector('head meta[name="wabs-data"]').getAttribute('content')));
+    element = document.querySelector('head meta[name="wabs-data"]');
+    if (element) content = element.getAttribute('content');
+    window.byu.wabs = content ? JSON.parse(decodeURIComponent(content)) : {};
 })();

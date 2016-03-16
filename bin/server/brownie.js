@@ -6,6 +6,7 @@ const bodyParser    = require('body-parser');
 const chalk         = require('chalk');
 const crypt         = require('../brownie/crypt');
 const noop          = require('./noop');
+const services      = require('./services');
 
 // define the urlEncoded parser middleware that will be used to parse POST data from the c-framework
 const cFrameworkFormParser = bodyParser.urlencoded({
@@ -26,6 +27,8 @@ module.exports = Brownie;
 function Brownie(config) {
     var crypto;
 
+    console.log('Brownie mode: ' + config.brownie);
+
     // validate brownie configuration
     if (levels.indexOf(config.brownie) === -1) throw Error('Brownie configuration value must be one of: ' + levels.join(', '));
     if (typeof config.brownieUrl !== 'string') throw Error('BrownieUrl must be a string.');
@@ -36,18 +39,21 @@ function Brownie(config) {
     // get the brownie crypto object
     crypto = crypt(config.brownieUrl);
 
+    // register the web services defined by this middleware
+    services.register('brownie.encode', config.endpoint + '/brownie/encode', 'A URL to call with PUT and brownie body to get back an encoded brownie from.');
+
     // return brownie middleware
     return function(req, res, next) {
-        if (req.method === 'POST' && !req.wabsEndpoint) {
+        if (req.method === 'POST' && !req.wabs.endpoint) {
             decode(crypto, req, res, next);
-        } else if (req.method === 'PUT' && req.url.indexOf(config.endpoint + '/brownie/encode') === 0) {
+        } else if (req.method === 'PUT' && req.wabs.endpoint === 'brownie/encode') {
             encode(crypto, req, res, next);
         } else if (req.method === 'GET' && req.query.hasOwnProperty('wabs-brownie')) {
             let brownie = req.query['wabs-brownie'];
             let sessionKey = req.cookies.hasOwnProperty('brownie') ? req.cookies.brownie : null;
             crypto.decode(brownie, sessionKey)
                 .then(function (decodedBrownie) {
-                    res.wabs.brownie = decodedBrownie;
+                    req.wabs.brownie = decodedBrownie;
                     next();
                 })
                 .catch(function (err) {
@@ -102,7 +108,7 @@ function decode(crypt, req, res, next) {
         if (brownie === null || sessionKey === null) return next();
 
         // if auth mode is always then we have to store the brownie data on the query string
-        if (req.authMode === 'always') {
+        if (req.wabs.authMode === 'always') {
             let query = Object.assign({}, req.query, { 'wabs-brownie': brownie });
             let url = req.url.split('?')[0];
             Object.keys(query).forEach(function(key, index) {
@@ -116,7 +122,7 @@ function decode(crypt, req, res, next) {
             crypt.decode(brownie, sessionKey)
                 .then(function (decodedBrownie) {
                     req.method = 'GET';
-                    res.wabs.brownie = decodedBrownie;
+                    req.wabs.brownie = decodedBrownie;
                     next();
                 })
                 .catch(function (err) {

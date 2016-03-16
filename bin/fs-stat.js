@@ -1,6 +1,8 @@
 "use strict";
+const chalk             = require('chalk');
 const chokidar          = require('chokidar');
 const CustomError       = require('custom-error-instance');
+const endpoint          = require('./server/endpoint');
 const fs                = require('fs');
 const fsMap             = require('fs-map');
 const injector          = require('./server/injector');
@@ -13,93 +15,29 @@ const readFile = Promise.promisify(fs.readFile);
 /**
  * Returns a promise that resolves to an object.
  * @param {object} config The configuration object used to start the application.
+ * @param {object} endpointMap The endpoint map object.
  * @returns {Promise}
  */
-module.exports = function(config) {
-    var store = {};
+module.exports = function(config, endpointMap) {
+    var store = statStore();
+    var promises = [];
 
-    /**
-     * Set the stats property for the specified file path and potentially cache content.
-     * @params {string} filePath
-     * @params {object} stats
-     */
-    function setStats(filePath, stats) {
-
-        // if the path is not an html file then just cache the stats as is
-        if (!stats.isFile() || !/\.html?$/i.test(filePath)) {
-            store[filePath] = stats;
-            console.log('Registered: ' + filePath);
-            return Promise.resolve();
+    // build file system maps for all sources
+    Object.keys(endpointMap).forEach(function(endpoint) {
+        var data = endpointMap[endpoint];
+        var promise;
+        if (!data.proxy) {
+            promise = data.watch ?
+                dynamicMap(data.source, data.endpoint, store) :
+                staticMap(data.source, data.endpoint, store);
+            promises.push(promise);
         }
+    });
 
-        // read the content of the html file
-        return readFile(filePath, 'utf8')
-            .then(function (content) {
-                var data;
-                var html;
-
-                // process the html
-                data = injector.process(content);
-                html = data.html;
-
-                // store authentication mode data
-                stats.authMode = data.authMode;
-
-                // if the html was modified then add html to the stats object
-                if (html.length !== content.length) stats.html = html;
-
-                // store the stats object
-                store[filePath] = stats;
-
-                console.log('Registered main: ' + filePath);
-            });
-    }
-
-    return new Promise(function(resolve, reject) {
-        fs.stat(config.src, function(err, stats) {
-            var factory;
-            var promises = [];
-            var watchReady = false;
-
-            if (err) return reject(err);
-            if (!stats.isDirectory()) return reject(Err('The specified --src must be a directory.'));
-            setStats(config.src, stats);
-
-            // use the file watch mapping
-            if (config.watch) {
-                chokidar.watch(config.src, { alwaysStat: true })
-                    .on('add', function(filePath, stats) {
-                        var promise = setStats(filePath, stats);
-                        if (!watchReady) promises.push(promise);
-                    })
-                    .on('change', function(filePath, stats) {
-                        setStats(filePath, stats);
-                    })
-                    .on('unlink', function(filePath) {
-                        delete store[filePath];
-                    })
-                    .on('ready', function() {
-                        watchReady = true;
-                        Promise.all(promises).then(() => resolve(factory), reject);
-                    })
-                    .on('error', function(err) {
-                        reject(err);
-                    });
-
-            // use a static mapping
-            } else {
-                fsMap(config.src)
-                    .then(function(data) {
-                        var promises = [];
-                        Object.keys(data).forEach(function(filePath) {
-                            promises.push(setStats(filePath, data[filePath]));
-                        });
-                        Promise.all(promises).then(() => resolve(factory), reject);
-                    }, reject);
-            }
-
-            // initialize the factory
-            factory = {};
+    // once all file system maps are built then resolve the promise to a controller
+    return Promise.all(promises)
+        .then(function() {
+            var factory = {};
 
             /**
              * Determine the authentication mode that the file should use.
@@ -117,20 +55,22 @@ module.exports = function(config) {
              * @returns {string, undefined}
              */
             factory.getIndexFilePath = function(directoryPath) {
+
+
                 return Object.keys(store)
                     .filter(function(filePath) {
                         var basename = path.basename(filePath);
-                        return filePath.indexOf(directoryPath) === 0 && /index\.html?$/i.test(basename);
+                        return filePath === directoryPath && /index\.html?$/i.test(basename);
                     })[0];
             };
 
             /**
-             * Get the stats object for a specific file path.
+             * Get the stats object for a specific file path. It will not get stats for a directory.
              * @param {string} filePath
              * @returns {object}
              */
             factory.get = function(filePath) {
-                return store.hasOwnProperty(filePath) ? store[filePath] : null;
+                return store.get(filePath);
             };
 
             /**
@@ -149,8 +89,7 @@ module.exports = function(config) {
              * @returns {boolean}
              */
             factory.isDirectory = function(filePath) {
-                var stats = factory.get(filePath);
-                return stats ? stats.isDirectory() : false;
+                return store.data.directories.hasOwnProperty(filePath);
             };
 
             /**
@@ -159,11 +98,11 @@ module.exports = function(config) {
              * @returns {boolean}
              */
             factory.isFile = function(filePath) {
-                var stats = factory.get(filePath);
-                return stats ? stats.isFile() : false;
+                return store.data.files.hasOwnProperty(filePath);
             };
+
+            return factory;
         });
-    });
 };
 
 Object.defineProperty(module.exports, 'error', {
@@ -171,3 +110,188 @@ Object.defineProperty(module.exports, 'error', {
     writable: false,
     value: Err
 });
+
+/**
+ * Bind a dynamic file system map to the store.
+ * @param {string} src
+ * @param {string} endpoint
+ * @param {object} store
+ * @returns {Promise}
+ */
+function dynamicMap(src, endpoint, store) {
+    return new Promise(function (resolve, reject) {
+        var watchReady = false;
+        var promises = [];
+        chokidar.watch(src, { alwaysStat: true })
+            .on('add', function(filePath, stats) {
+                var promise = store.add(src, filePath, endpoint, stats);
+                if (!watchReady) promises.push(promise);
+            })
+            .on('change', (filePath, stats) => store.update(src, filePath, endpoint, stats))
+            .on('unlink', filePath => store.remove(src, filePath, endpoint))
+            .on('ready', function() {
+                watchReady = true;
+                Promise.all(promises).then(resolve, reject);
+            })
+            .on('error', function(err) {
+                reject(err);
+            });
+    });
+}
+
+/**
+ * Build a file system map into the store.
+ * @param {string} src
+ * @param {string} endpoint
+ * @param {object} store
+ * @returns {Promise}
+ */
+function staticMap(src, endpoint, store) {
+    return fsMap(src)
+        .then(function(data) {
+            var promises = [];
+            Object.keys(data).forEach(function(filePath) {
+                store.update(src, filePath, endpoint, data[filePath]);
+            });
+            return Promise.all(promises);
+        });
+}
+
+/**
+ * Get a file system store.
+ * @returns {object}
+ */
+function statStore() {
+    var rxHtml = /\.html?$/i;
+    var store = {
+        endpoints: {},
+        files: {}
+    };
+
+    function removeEndpoint(endpoint, root, filePath) {
+        var index;
+        var relative = path.relative(root, filePath);
+        var key = path.resolve(endpoint, relative);
+
+        // remove the actual document file path mapping from the endpoint
+        if (store.endpoints.hasOwnProperty(key)) {
+            index = store.endpoints[key].indexOf(filePath);
+            store.endpoints[key].splice(index, 1);
+            console.log('Un-map endpoint ' + chalk.bold(endpoint) + ' from ' + chalk.bold(filePath));
+        }
+
+        // if the endpoint is empty then remove the endpoint
+        if (store.endpoints[key].length === 0) delete store.endpoints[key];
+    }
+
+    function setEndpoint(endpoint, filePath) {
+
+        // map the endpoint file path to the actual document file path
+        if (!store.endpoints.hasOwnProperty(endpoint)) store.endpoints[endpoint] = [];
+        store.endpoints[endpoint].push(filePath);
+        console.log('Map endpoint ' + chalk.bold(endpoint) + ' to ' + chalk.bold(filePath));
+
+        // notify of conflicting file paths
+        if (store.endpoints[endpoint].length > 1) {
+            console.warn('Endpoint conflict at ' + endpoint + ' from ' + store.endpoints[endpoint].join(', '));
+            store.endpoints[endpoint].sort();
+        }
+    }
+
+    return {
+
+        /**
+         * Add a path to the store.
+         * @param {string} root
+         * @param {string} filePath
+         * @param {string} endpoint
+         * @param {object} stats
+         * @returns {Promise}
+         */
+        add: function(root, filePath, endpoint, stats) {
+            if (!stats.hasOwnProperty('count')) stats.count = 0;
+            stats.count++;
+            return this.update(root, filePath, endpoint, stats);
+        },
+
+        /**
+         * Get the file path and stats object for an endpoint path.
+         * @param {string} endpoint
+         * @returns {{path: string, stats: object}}
+         */
+        get: function(endpoint) {
+            var ar = store.endpoints[endpoint];
+            return ar ? { path: ar[0], stats: store.files[ar[0]] } : void 0;
+        },
+
+        //data: store,
+
+        /**
+         * Remove a path from the store.
+         * @param {string} root
+         * @param {string} filePath
+         * @param {string} endpoint
+         */
+        remove: function(root, filePath, endpoint) {
+            var key;
+            var relative;
+
+            if (store.files.hasOwnProperty(filePath)) {
+                relative = path.relative(root, filePath);
+                key = path.resolve(endpoint, relative);
+                stats.count--;
+                if (stats.count === 0) {
+                    delete store.files[filePath];
+                    removeEndpoint(key, filePath);
+                    if (rxHtml.test(filePath)) removeEndpoint(path.dirname(key), filePath);
+                }
+            }
+        },
+
+        /**
+         * Update a path in the store.
+         * @param {string} root
+         * @param {string} filePath
+         * @param {string} endpoint
+         * @param {object} stats
+         * @returns {Promise}
+         */
+        update: function(root, filePath, endpoint, stats) {
+            var relative = path.relative(root, filePath);
+
+            // if it is not a file then return
+            if (!stats.isFile()) return Promise.resolve();
+
+            // if the path is not an html file then just cache the stats as is
+            if (!rxHtml.test(filePath)) {
+                store.files[filePath] = stats;
+                setEndpoint(path.resolve(endpoint, relative), filePath);
+                return Promise.resolve();
+            }
+
+            // read the content of the html file
+            return readFile(filePath, 'utf8')
+                .then(function (content) {
+                    var data;
+                    var html;
+                    var key;
+
+                    // process the html
+                    data = injector.process(content);
+                    html = data.html;
+
+                    // store authentication mode data
+                    stats.authMode = data.authMode;
+
+                    // if the html was modified then add html to the stats object
+                    if (html !== content) stats.html = html;
+
+                    // store the stats object
+                    store.files[filePath] = stats;
+                    key = path.resolve(endpoint, relative);
+                    setEndpoint(key, filePath);
+                    setEndpoint(path.dirname(key), filePath);
+                });
+        }
+    }
+}

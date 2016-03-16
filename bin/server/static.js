@@ -6,77 +6,49 @@ const path          = require('path');
 const request       = require('request');
 
 module.exports = function(config, stats) {
-    return stats ? local(config, stats) : proxy(config);
-};
-
-function addStandardHeaders(res, fileStat) {
-    res.set('Accept-Range', 'bytes');
-    res.set('Cache-Control', 'public, max-age=0');
-    res.set('Content-Type', 'text/html');
-    res.set('Last-Modified', fileStat.mtime);
-}
-
-function local(config, stats) {
     return function(req, res, next) {
-        var filePath = path.resolve(config.src, req.url.substr(1));
-        var fileStat;
-        var sent;
 
-        if (req.method === 'GET') {
+        // if not GET or if a wabs endpoint then exit
+        if (req.method !== 'GET' || req.wabs.endpoint) return next();
 
-            // get the file stat
-            fileStat = stats.get(req.filePath);
+        // local file
+        if (req.wabs.fsStat) {
 
-            // if there is a file at the path then process it
-            if (fileStat && fileStat.isFile()) {
-                if (req.isAppRoot) {
-                    addStandardHeaders(res, fileStat);
-                    res.sendInjected(fileStat.html);
-                    sent = true;
-                } else {
-                    res.sendFile(filePath);
-                    sent = true;
-                }
+            // if the content is in memory then add standard headers
+            if (req.wabs.content) {
+                res.set('Accept-Range', 'bytes');
+                res.set('Cache-Control', 'public, max-age=0');
+                res.set('Content-Type', 'text/html');
+                res.set('Last-Modified', req.wabs.fsStat.stats.mtime);
             }
-        }
 
-        if (!sent) next();
-    }
-}
+            // send the content
+            if (req.wabs.inject) {
+                res.sendInjected(req.wabs.content);
+            } else if (req.wabs.content) {
+                res.send(req.wabs.content);
+            } else {
+                res.sendFile(req.wabs.fsStat.path);
+            }
 
-function proxy(config) {
-    return function(req, res, next) {
-        var requestConfig = {
-            body: req.body,
-            headers: req.header,
-            method: 'GET',
-            qs: req.query,
-            url: config.src + req.url
-        };
 
-        request(requestConfig, function(err, response, body) {
-            var contentType;
+        // proxied file
+        } else if (req.wabs.proxy) {
 
-            // if there is an error then pass it on
-            if (err) return next(err);
-
-            // analyze headers and add them to response object
-            Object.keys(response.headers).forEach(function(key) {
-                var value = response.headers[key];
-
-                // set the response header
-                res.set(key, value);
-
-                // detect content type header
-                if (/^content-type$/i.test(key)) contentType = value;
+            // set the headers
+            req.wabs.headers.forEach(function (item) {
+                res.set(item.key, item.value);
             });
 
-            // if the content is html then send injected html, otherwise send the content as received
-            if (/text\/html/i.test(contentType)) {
-                res.sendInjected(injector.addInjectSpaces(body));
+            // send the content
+            if (req.wabs.inject) {
+                res.sendInjected(req.wabs.content);
             } else {
-                res.send(body);
+                res.send(req.wabs.content);
             }
-        });
-    }
-}
+
+        } else {
+            next();
+        }
+    };
+};

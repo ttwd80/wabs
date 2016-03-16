@@ -5,6 +5,7 @@ const crypto            = require('crypto');
 const noop              = require('./noop');
 const oauth             = require('byu-wabs-oauth');
 const path              = require('path');
+const services          = require('./services');
 
 module.exports = Authenticate;
 
@@ -15,9 +16,11 @@ const authStage = {
 };
 
 function Authenticate(config, stats) {
+    console.log('Authenticate mode: ' + config.authenticate);
+
     if (config.authenticate === 'none') return noop;
 
-    //check that each required property is set
+    // check that each required property is set
     ['consumerKey', 'consumerSecret', 'encryptSecret', 'wellKnownUrl'].forEach(function(key) {
         if (!config.hasOwnProperty(key)) throw Error('Missing required configuration setting: ' + camel.to('-', key));
     });
@@ -33,51 +36,55 @@ function Authenticate(config, stats) {
         return url;
     }
 
+    // register the web services defined by this middleware
+    services.register('auth.cas', config.endpoint + '/auth/cas', 'The URL to direct CAS to to verify the CAS token. A redirect query parameter is required.');
+    services.register('oauth.login', config.endpoint + '/auth/oauth-login', 'The URL to use to log in to OAuth.');
+    services.register('oauth.code', config.endpoint + '/auth/oauth-code', 'The URL to direct OAuth to that will receive the OAuth code.');
+    services.register('oauth.refresh', config.endpoint + '/auth/oauth-refresh', 'The URL to call to attempt to refresh the OAuth token.');
+
     return function(req, res, next) {
 
         // if not a GET then exit
         if (req.method !== 'GET') return next();
 
         // cas gateway request redirects to here
-        if (req.wabsEndpoint === 'auth/cas') {
+        if (req.wabs.endpoint === 'auth/cas') {
             let auth = decodeWabAuthCookie(req, eSecret);
 
             // missing redirect in the query
             if (!req.query.redirect) {
-                res.sendStatusView(400);
+                res.sendStatusView(400, null, 'Required query parameter "redirect" not provided.');
 
             // CAS verified login and refresh token exists
             } else if (req.query.ticket && auth && auth.refreshToken) {
                 let redirectUrl = getRedirectUrl(req, 'oauth-code');
-                req.query.redirect = getQueryParameter(req.query.redirect, 'redirect') || '/';
                 refresh(req, res, next, cKey, cSecret, wkUrl, auth.refreshToken, redirectUrl, eSecret);
 
             // CAS verified login but no refresh token
             } else if (req.query.ticket) {
-                req.query.redirect = getQueryParameter(req.query.redirect, 'redirect') || '/';
                 login(req, res, next, cKey, cSecret, wkUrl, getRedirectUrl(req, 'oauth-code'));
 
             // CAS did not verify login
             } else {
-                let url = encodeURIComponent(getRedirectUrl(req, 'cas?redirect=' + req.url));
+                let url = encodeURIComponent(getRedirectUrl(req, 'cas?redirect=' + req.query.redirect));
                 res.redirect('https://cas.byu.edu/cas/login?service=' + url);
             }
 
         // client oauth login request
-        } else if (req.wabsEndpoint === 'auth/login') {
+        } else if (req.wabs.endpoint === 'auth/oauth-login') {
             login(req, res, next, cKey, cSecret, wkUrl, getRedirectUrl(req, 'oauth-code'));
 
         // oauth response code redirects to here
-        } else if (req.wabsEndpoint === 'auth/oauth-code') {
+        } else if (req.wabs.endpoint === 'auth/oauth-code') {
             code(req, res, next, cKey, cSecret, wkUrl, getRedirectUrl(req, 'oauth-code'), eSecret);
 
         // handle the refresh token to get latest authorization code
-        } else if (req.wabsEndpoint === 'auth/oauth-refresh' && req.query.code) {
+        } else if (req.wabs.endpoint === 'auth/oauth-refresh' && req.query.code) {
             let refreshToken = decrypt(eSecret, req.query.code);
             gateway(req, res, cKey, cSecret, wkUrl, refreshToken, eSecret);
 
-        // verify authentication which app root load
-        } else if (!req.wabsEndpoint && req.isAppRoot && req.authMode === 'always') {
+        // verify authentication with app root load
+        } else if (!req.wabs.endpoint && req.wabs.inject && req.wabs.authMode === 'always') {
 
             // authorization was denied
             if (req.cookies['wabs-auth-stage'] === authStage.notAuthorized) {
@@ -122,7 +129,6 @@ Authenticate.options = {
         description: 'The consumer key from the application defined in WSO2. This value must be set if the ' +
             chalk.italic('--authenticate') + ' option is set to either "manual" or "always".',
         type: String,
-        //required: opts => options.authenticate !== 'none',
         group: 'auth'
     },
     consumerSecret: {
@@ -366,7 +372,7 @@ function getQueryParameter(url, name) {
  * @param {string} redirectURI The redirect URL.
  */
 function login(req, res, next, key, secret, wkUrl, redirectURI) {
-    const state = { brownie: res.wabs.brownie, redirect: req.query.redirect || '/' };
+    const state = { brownie: req.wabs.brownie, redirect: req.query.redirect || '/' };
     const reqConfig = {
         redirect_uri: redirectURI,
         scope: 'openid',

@@ -1,13 +1,11 @@
 "use strict";
 const favicon       = require('express-favicon');
-const noop          = require('./noop');
-const path          = require('path');
 
-module.exports = function() {
+module.exports = function(stats) {
     return function(req, res, next) {
-        if (!req.proxy && /\/favicon\.ico$/.test(req.url) && req.filePath) {
+        if (!req.wabs.proxy && /\/favicon\.ico$/.test(req.url) && stats.get(req.wabs.fsStat) !== null) {
             res.set('Content-Type', 'image/x-icon');
-            res.sendFile(req.filePath);
+            res.sendFile(req.wabs.fsStat.path);
         } else {
             next();
         }
