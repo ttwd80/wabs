@@ -104,7 +104,7 @@ Server.options = {
             chalk.bold('Example: Multiple:') + '\n--src ./src:/ --src ./bower-components:/components --src http://someserver.com/:/proxy',
         type: String,
         multiple: true,
-        defaultValue: '/:./',
+        defaultValue: './:/',
         group: 'server'
     },
     statusView: {
