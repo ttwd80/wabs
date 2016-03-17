@@ -4,6 +4,16 @@ The official BYU **W**eb **A**uthentication **B**ootstrap **S**erver.
 
 This application acts as either a **static file server** or a **proxy server** and adds functionality to client web applications to 1) integrate authentication, 2) facilitate OAuth, and 3) provide interoperability with legacy code (via brownies).
 
+## Quick Links
+
+* [Installation](#installation)
+* [Starting the Server](#starting-the-server)
+* [Server Options](#server-options)
+* [Authentication / Authorization Options](#authentication--authorization-options)
+* [Brownie Options](#brownie-options)
+* [Client Application Authentication / Authorization Tools](#client-application-authentication--authorization-tools)
+* [Client Application Brownie Tools](#client-application-brownie-tools)
+
 ## Installation
 
 It is recommended that this node package be installed globally:
@@ -142,9 +152,9 @@ byu-wabs --status-view /var/www/views/status.html
 
 If you are interested in having this server facilitate authentication and authorization (via OAuth) then you must set the authenticate option to either `manual` or `always`.
 
-If set to either `manual` or `always` then all other authentication / authorization options are required (except where a default value exist for the option). Also in these modes the client application will automatically have access to additional tools. For details on these tools see the section titled [Client Application Authentication / Authorization Tools](#client-web-application-authentication--authorization-tools).
+If set to either `manual` or `always` then all other authentication / authorization options are required (except where a default value exist for the option). Also in these modes the client application will automatically have access to additional tools. For details on these tools see the section titled [Client Application Authentication / Authorization Tools](#client-application-authentication--authorization-tools).
 
-If set to `none` then all other authentication options are ignored and the client application will not have access to the [Client Application Authentication / Authorization Tools](#client-web-application-authentication--authorization-tools).
+If set to `none` then all other authentication options are ignored and the client application will not have access to the [Client Application Authentication / Authorization Tools](#client-application-authentication--authorization-tools).
 
 ### authenticate
 
@@ -246,7 +256,7 @@ byu-wabs -u http://somewhere.com/brownie-service
 byu-wabs --brownie-url http://somewhere.com/brownie-service
 ```
 
-## Client Web Application Authentication / Authorization Tools
+## Client Web Authentication / Authorization Tools
 
 If the authenticate option is set to either `manual` or `always` then your client application will automatically get access to a few additional tools:
 
