@@ -285,7 +285,7 @@ function statStore() {
                     stats.authMode = data.authMode;
 
                     // if the html was modified then add html to the stats object
-                    if (html !== content) stats.html = html;
+                    if (data.changed) stats.html = html;
 
                     // store the stats object
                     store.files[filePath] = stats;

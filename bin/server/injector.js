@@ -69,19 +69,25 @@ function injector(config) {
 injector.process = function(content) {
     const $ctrl = cheerio.load(content);
     var authMode = null;
+    var changed = false;
 
     // if the html has a head tag then add placeholders and look for metadata
     if ($ctrl('head').length > 0) {
         $ctrl('head').append('<!-- wabs-data --><!-- wabs-brownie-data -->');
         authMode = $ctrl('head meta[name="wabs-authenticate-mode"]').attr('content');
+        changed = true;
     }
 
     // if the html has a body tag then add the script placeholder to the end of the body
-    if ($ctrl('body').length > 0) $ctrl('body').append('<!-- wabs-script -->');
+    if ($ctrl('body').length > 0) {
+        $ctrl('body').append('<!-- wabs-script -->');
+        changed = true;
+    }
 
     return {
         authMode: authMode,
-        html: $ctrl.html()
+        changed: changed,
+        html: changed ? $ctrl.html() : content
     };
 };
 
