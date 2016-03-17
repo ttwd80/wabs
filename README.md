@@ -142,9 +142,9 @@ byu-wabs --status-view /var/www/views/status.html
 
 If you are interested in having this server facilitate authentication and authorization (via OAuth) then you must set the authenticate option to either `manual` or `always`.
 
-If set to either `manual` or `always` then all other authentication / authorization options are required (except where a default value exist for the option). Also in these modes the client application will automatically have access to additional tools. For details on these tools see the section titled [Client Application Authentication Tools](#).
+If set to either `manual` or `always` then all other authentication / authorization options are required (except where a default value exist for the option). Also in these modes the client application will automatically have access to additional tools. For details on these tools see the section titled [Client Application Authentication / Authorization Tools](#authentication--authorization-options).
 
-If set to `none` then all other authentication options are ignored and the client application will not have access to the [Client Application Authentication Tools](#).
+If set to `none` then all other authentication options are ignored and the client application will not have access to the [Client Application Authentication / Authorization Tools](#authentication--authorization-options).
 
 ### authenticate
 
@@ -204,9 +204,9 @@ The well known URL to use to get authentication information from.
 
 If you would like your client applications to have interoperability with legacy code (specifically the BYU-OIT C-framework) then you must set the brownie option to either `manual` or `always`.
 
-If set to either `manual` or `always` then all other brownie options are required. Also, in these modes the client application will automatically have access to additional tools. For details on these tools see the section titled [Client Application Brownie Tools](#).
+If set to either `manual` or `always` then all other brownie options are required. Also, in these modes the client application will automatically have access to additional tools. For details on these tools see the section titled [Client Application Brownie Tools](#client-web-application-brownie-tools).
 
-If set to `none` then all other brownie options are ignored and the client application will not have access to the [Client Application Brownie Tools](#).
+If set to `none` then all other brownie options are ignored and the client application will not have access to the [Client Application Brownie Tools](#client-web-application-brownie-tools).
 
 ### brownie
 
@@ -369,7 +369,7 @@ byu.auth.refresh();
 var x = byu.auth.refreshToken;
 ```
 
-## Client Web Application Brownie Tools
+## Client Application Brownie Tools
 
 If the brownie option is set to either `always` or `manual` then your client application will automatically get access to a few additional tools:
 

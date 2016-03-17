@@ -143,9 +143,9 @@ Command.define('server', Server, {
                 chalk.bold('If set to either "manual" or "always"') + ' then all other authentication / authorization options are ' +
                 'required (except where a default value exist for the option). Also in these modes the client ' +
                 'application will automatically have access to additional tools. For details on these tools see the ' +
-                'section titled ' + chalk.bold.cyan('Client Application Authentication Tools') + '.\n\n' +
+                'section titled ' + chalk.bold.cyan('Client Application Authentication / Authorization Tools') + '.\n\n' +
                 chalk.bold('If set to "none"') + ' then all other authentication options are ignored and the ' +
-                'client application will not have access to the ' + chalk.bold.cyan('Client Application Authentication Tools') + '.'
+                'client application will not have access to the ' + chalk.bold.cyan('Client Application Authentication / Authorization Tools') + '.'
         },
         brownie: {
             title: 'Brownie Options',
@@ -162,7 +162,7 @@ Command.define('server', Server, {
     options: Object.assign({}, Server.options, authenticate.options, brownie.options),
     sections: [
         {
-            title: 'Client Application Authentication Tools',
+            title: 'Client Application Authentication / Authorization Tools',
             beforeOptions: true,
             body: 'If the ' + chalk.bold.cyan('authenticate') + ' option is set to either "manual" or "always" ' +
                 'then your client application will automatically get access to a few additional tools:\n\n' +
