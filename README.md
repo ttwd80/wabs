@@ -256,7 +256,7 @@ byu-wabs -u http://somewhere.com/brownie-service
 byu-wabs --brownie-url http://somewhere.com/brownie-service
 ```
 
-## Client Web Authentication / Authorization Tools
+## Client Authentication / Authorization Tools
 
 If the authenticate option is set to either `manual` or `always` then your client application will automatically get access to a few additional tools:
 
