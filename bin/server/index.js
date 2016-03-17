@@ -100,8 +100,9 @@ Server.options = {
             'resources should be available by specifying the path followed by ":" followed by the endpoint. ' +
             'If the endpoint is not specified then "/" is assumed.\n\n' +
             chalk.bold('Example: Proxy with Default Endpoint:') + '\n--src http://someserver.com/\n\n' +
-            chalk.bold('Example: Local path Default Endpoint:') + '\n--src ./src-directory\n\n' +
-            chalk.bold('Example: Multiple:') + '\n--src ./src:/ --src ./bower-components:/components --src http://someserver.com/:/proxy',
+            chalk.bold('Example: Local Path with Default Endpoint:') + '\n--src ./src-directory\n\n' +
+            chalk.bold('Example: Multiple Sources with Custom Endpoints:') +
+            '\n--src ./src:/ --src ./bower-components:/components --src http://someserver.com/:/proxy',
         type: String,
         multiple: true,
         defaultValue: './:/',
@@ -135,11 +136,11 @@ Command.define('server', Server, {
     groups: {
         server: 'Server Options',
         auth: {
-            title: 'Authentication Options',
+            title: 'Authentication / Authorization Options',
             description: 'If you are interested in having this server facilitate authentication and authorization ' +
                 '(via OAuth) then you must set the ' + chalk.bold.cyan('authenticate') + ' option to either ' +
                 '"manual" or "always".\n\n' +
-                chalk.bold('If set to either "manual" or "always"') + ' then all other authentication options are ' +
+                chalk.bold('If set to either "manual" or "always"') + ' then all other authentication / authorization options are ' +
                 'required (except where a default value exist for the option). Also in these modes the client ' +
                 'application will automatically have access to additional tools. For details on these tools see the ' +
                 'section titled ' + chalk.bold.cyan('Client Application Authentication Tools') + '.\n\n' +
