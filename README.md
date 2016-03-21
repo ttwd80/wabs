@@ -13,6 +13,7 @@ This application acts as either a **static file server** or a **proxy server** a
 * [Brownie Options](#brownie-options)
 * [Client Application Authentication / Authorization Tools](#client-application-authentication--authorization-tools)
 * [Client Application Brownie Tools](#client-application-brownie-tools)
+* [Client Events](#client-events)
 
 ## Installation
 
@@ -470,7 +471,7 @@ A function to remove a brownie property value. The first parameter is the key.
 byu.brownie.unset('user');
 ```
 
-## Events
+## Client Events
 
 The following events are be dispatched on the client's document object. To subscribe to these events you can add an event listener to the document object as follows:
 
