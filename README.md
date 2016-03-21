@@ -47,6 +47,14 @@ For a list of options and what they do, please use `byu-wabs --help` from the co
 
 ## Server Options
 
+### development
+
+Set the server into development mode, removing optimizations while improving the ability to debug.
+
+* **alias:** d
+* **type:** Boolean
+* **default:** `false`
+
 ### endpoint
 
 The endpoint for the web application bootstrap server’s services. Static files that fall within this path will not be served.
@@ -72,6 +80,16 @@ The port number to start the server on.
 * **alias:** p
 * **type:** Number
 * **default:** `9000`
+
+**Examples**
+
+```sh
+byu-wabs -p 80
+```
+
+```sh
+byu-wabs --port 80
+```
 
 **Examples**
 

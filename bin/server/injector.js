@@ -13,9 +13,9 @@ function injector(config) {
 
     // load minified scripts
     scripts = {
-        auth: getScriptContent('auth.js'),
-        brownie: getScriptContent('brownie.js'),
-        init: getScriptContent('init.js')
+        auth: getScriptContent('auth.js', config.development),
+        brownie: getScriptContent('brownie.js', config.development),
+        init: getScriptContent('init.js', config.development)
     };
 
     // generate joined scripts
@@ -114,10 +114,9 @@ function getScriptReplacementString(config) {
 }
 
 var fs = require('fs');
-function getScriptContent(filePath) {
+function getScriptContent(filePath, development) {
     var absFilePath = path.resolve(__dirname, '../www/', filePath);
-    return fs.readFileSync(absFilePath, 'utf8');
-    return uglify.minify(absFilePath).code;
+    return development ? fs.readFileSync(absFilePath, 'utf8') : uglify.minify(absFilePath).code;
 }
 
 /**

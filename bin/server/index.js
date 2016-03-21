@@ -78,6 +78,12 @@ function Server(config) {
 }
 
 Server.options = {
+    development: {
+        alias: 'd',
+        description: 'Set the server into development mode, removing optimizations while improving the ability to debug.',
+        type: Boolean,
+        group: 'server'
+    },
     endpoint: {
         alias: 'e',
         description: 'The endpoint for the web application bootstrap server\'s services. Static files that ' +
