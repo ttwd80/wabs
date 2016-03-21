@@ -91,12 +91,15 @@
      * @returns {object} for chaining.
      */
     brownie.unset = function(key) {
+        var value;
         if (store.hasOwnProperty(key)) {
+            value = store[key];
             delete store[key];
             encodeNeeded = true;
             storageUpdate();
             dispatch('brownie-delete', {
-                key: key
+                key: key,
+                value: value
             });
         }
         return brownie;
