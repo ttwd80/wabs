@@ -86,11 +86,11 @@
 
         // initialize optional arguments
         if (arguments.length < 1) casLogout = true;
-        if (arguments.length < 2) redirect = window.location.toString();
+        if (arguments.length < 2 || redirect === true) redirect = window.location.toString();
 
         // dispatch the logout event
         dispatch('auth-logout', {
-            casLogout: casLogout,
+            casLogout: !!casLogout,
             redirect: redirect
         });
 
