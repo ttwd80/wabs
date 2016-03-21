@@ -32,9 +32,11 @@
         },
         set: function(value) {
             if (typeof value !== 'number' || isNaN(value)) value = 0;
-            autoRefresh = value;
-            setAutoRefreshTimeout();
-            dispatch('auth-auto-refresh', autoRefresh);
+            if (autoRefresh !== value) {
+                autoRefresh = value;
+                setAutoRefreshTimeout();
+                dispatch('auth-auto-refresh', autoRefresh);
+            }
         }
     });
 
