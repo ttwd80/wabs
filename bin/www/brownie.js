@@ -40,24 +40,31 @@
      * @param {string} target The target window to cause to navigate.
      */
     brownie.navigateTo = function(url, target) {
+        var detail = {
+            encodeNeeded: encodeNeeded,
+            legacyUrl: isCFrameworkRx.test(url),
+            target: target,
+            url: url
+        };
         var form = document.createElement('form');
         form.setAttribute('target', target || '_self');
         form.setAttribute('method', 'POST');
         form.setAttribute('action', url);
-        if (isCFrameworkRx.test(url)) {
+        if (detail.legacyUrl) {
             if (encodeNeeded) {
-                dispatch('brownie-navigate', { modified: true, legacyUrl: true });
+                dispatch('brownie-navigate', detail);
                 ajaxPut(byu.wabs.services['brownie.encode'].url, store, function(status, data) {
                     if (status === 200) form.appendChild(createFormInput('brownie', data));
                     form.submit();
                 });
             } else {
-                dispatch('brownie-navigate', { modified: false, legacyUrl: true });
+                dispatch('brownie-navigate', detail);
                 form.appendChild(createFormInput('brownie', store.__brownie));
                 form.submit();
             }
         } else {
-            dispatch('brownie-navigate', { modified: false, legacyUrl: false });
+            detail.encodeNeeded = false;
+            dispatch('brownie-navigate', detail);
             form.submit();
         }
     };
