@@ -58,12 +58,12 @@ function Server(config) {
             app = express();
 
             // add middleware
+            app.use(mid.statusView);    // status code views    - define res.sendStatusView()
             app.use(mid.log);           // logging              - set up log summary
             app.use(mid.compression);   // gzip                 - gzip sent responses
             app.use(mid.init);          // setup                - initialize req.wabs and res.wabs objects
             app.use(mid.favicon);       // favicon              - send favicon when there is a request for one
             app.use(mid.cookieParser);  // cookies              - parse cookies
-            app.use(mid.statusView);    // status code views    - define res.sendStatusView()
             app.use(mid.brownie);       // brownie              - define brownie service endpoints, handle posted brownie data
             app.use(mid.proxy);         // proxy                - get proxied content, analyze and process html
             app.use(mid.authenticate);  // auth                 - authentication and authorization
