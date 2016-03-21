@@ -5,6 +5,7 @@
     var autoRefresh = 0;
     var autoRefreshTimeoutId;
     var cookieName = 'wabs-auth';
+    var dispatch = byu.__dispatch;
     var expires;
     var initTime;
     var logoutIframe;
@@ -33,6 +34,7 @@
             if (typeof value !== 'number' || isNaN(value)) value = 0;
             autoRefresh = value;
             setAutoRefreshTimeout();
+            dispatch('auth-auto-refresh', autoRefresh);
         }
     });
 
@@ -84,6 +86,12 @@
         if (arguments.length < 1) casLogout = true;
         if (arguments.length < 2) redirect = window.location.toString();
 
+        // dispatch the logout event
+        dispatch('auth-logout', {
+            casLogout: casLogout,
+            redirect: redirect
+        });
+
         // if there is no redirect but we are doing CAS logout then use an iframe to log out
         if (!redirect && casLogout) {
             if (logoutIframe) logoutIframe.parentNode.removeChild(logoutIframe);
@@ -108,26 +116,54 @@
      * @param {function} callback That gets an error as its first parameter if an error occurred.
      */
     auth.refresh = function(callback) {
+        var err;
         if (arguments.length === 0) callback = function() {};
         if (auth.refreshToken) {
             ajaxGet(byu.wabs.services['oauth.refresh'].url + '?code=' + auth.refreshToken, function(status, text) {
                 var data;
+                var err;
+
+                // process result
                 if (status === 200) {
-                    data = JSON.parse(text);
+
+                    // attempt to parse the JSON string
+                    try {
+                        data = JSON.parse(text);
+                    } catch (e) {
+                        data = {
+                            error: {
+                                title: 'Unable to parse JSON response',
+                                description: e.message
+                            }
+                        };
+                    }
+
+                    // handle the parsed result
                     if (!data.error) {
                         initialize(text, true);
                         callback(null);
-                    } else {
-                        callback(Error(data.error.title + ': ' + data.error.description));
+                    } else  {
+                        err = Error(data.error.title + ': ' + data.error.description);
                     }
+
+                // not a 200 status code
                 } else {
-                    data = Error(text);
-                    data.status = status;
-                    callback(data);
+                    err = Error(text);
+                }
+
+                // report error
+                if (err) {
+                    err.status = status;
+                    callback(err);
+                    dispatch('auth-error', err);
+                    auth.logout(false, false);
                 }
             });
         } else {
-            callback(Error('Refresh token does not exist.'));
+            err = Error('Refresh token does not exist.');
+            callback(err);
+            dispatch('auth-error', err);
+            auth.logout(false, false);
         }
     };
 
@@ -180,7 +216,14 @@
         // reset timeout
         setAutoRefreshTimeout();
 
+        // update the cookie
         if (data && storeCookie) createCookie(cookieName, encodeURIComponent(jsonString));
+
+        // dispatch an event about the update
+        dispatch('auth-update', {
+            accessToken: accessToken,
+            refreshToken: refreshToken
+        });
     }
 
     function readCookie(name) {

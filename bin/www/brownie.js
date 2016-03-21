@@ -1,5 +1,6 @@
 (function() {
     var brownie = {};
+    var dispatch = byu.__dispatch;
     var encodeNeeded = false;
     var isCFrameworkRx = /^https?:\/\/y(?:-[a-z]*)?\.byu.edu\/(?:[\s\S]*?)\.cgi[\/\?]?/i;
     var store = {};
@@ -45,15 +46,18 @@
         form.setAttribute('action', url);
         if (isCFrameworkRx.test(url)) {
             if (encodeNeeded) {
+                dispatch('brownie-navigate', { modified: true, legacyUrl: true });
                 ajaxPut(byu.wabs.services['brownie.encode'].url, store, function(status, data) {
                     if (status === 200) form.appendChild(createFormInput('brownie', data));
                     form.submit();
                 });
             } else {
+                dispatch('brownie-navigate', { modified: false, legacyUrl: true });
                 form.appendChild(createFormInput('brownie', store.__brownie));
                 form.submit();
             }
         } else {
+            dispatch('brownie-navigate', { modified: false, legacyUrl: false });
             form.submit();
         }
     };
@@ -70,6 +74,10 @@
                 store[key] = value;
                 encodeNeeded = true;
                 storageUpdate();
+                dispatch('brownie-update', {
+                    key: key,
+                    value: value
+                });
             }
         } else {
             throw new Error('Invalid brownie property value. Value must be a string, a number, or null');
@@ -87,6 +95,9 @@
             delete store[key];
             encodeNeeded = true;
             storageUpdate();
+            dispatch('brownie-delete', {
+                key: key
+            });
         }
         return brownie;
     };
