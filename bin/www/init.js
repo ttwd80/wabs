@@ -50,11 +50,6 @@
         delete byu.__dispatch;
     }, 0);
 
-    document.addEventListener('byu-wabs', function(e) {
-        "use strict";
-        console.log(e.detail.name, e.detail.data);
-    });
-
     function dispatch(name, data) {
         document.dispatchEvent(new CustomEvent('byu-wabs-' + name, { detail: data }));
         document.dispatchEvent(new CustomEvent('byu-wabs', { detail: {
