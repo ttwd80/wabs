@@ -469,3 +469,126 @@ A function to remove a brownie property value. The first parameter is the key.
 ```js
 byu.brownie.unset('user');
 ```
+
+## Events
+
+The following events are be dispatched on the client's document object. To subscribe to these events you can add an event listener to the document object as follows:
+
+```js
+document.addEventListener(eventName, callback)
+```
+
+For each event listed it can also be listened to from the wide wabs event. The detail property for the event will include a shortened version of the event's full name plus a data object that has the detail for that event. Event names are formatted as `byu-wabs-<shortName>`. For example the event `byu-wabs-auth-update` will have the short name of `auth-update`.
+
+```js
+document.addEventListener('byu-wabs', function(e) {
+    console.log(e.detail.name);     // the shortened name of the specific event
+    console.log(e.detail.data);     // the detail for that specific event
+});
+```
+
+#### byu-wabs-ready
+
+This event will be triggered when the wabs JavaScript has finished loading. It's detail property points to the global `byu` object.
+
+**Example 1: Wide Event**
+
+```js
+document.addEventListener('byu-wabs', function(e) {
+    if (e.detail.name === 'ready') {
+        console.log('Ready to use BYU object');
+    }
+});
+```
+
+**Example 2: Specific Event**
+
+```js
+document.addEventListener('byu-wabs-ready', function(e) {
+    console.log('Ready to use BYU object');
+});
+```
+
+### Authentication / Authorization Events
+
+These events are specific to the authentication / authorization mode and will only fire if the mode is set to either `manual` or `always`.
+
+#### byu-wabs-auth-auto-refresh
+
+This event fires whenever the `byu.auth.autoRefresh` value is modified. The detail property has the updated autoRefresh value.
+
+```js
+document.addEventListener('byu-wabs-auth-auto-refresh', function(e) {
+    console.log('Auto refresh set to: ' + e.detail);
+});
+```
+
+#### byu-wabs-auth-error
+
+This event fires whenever the authentication / authorization was attempted but failed, including during a refresh. The event detail property will contain an Error object for the Error that occurred.
+
+```js
+document.addEventListener('byu-wabs-auth-error', function(e) {
+    console.error(e.detail.stack);
+});
+```
+
+#### byu-wabs-auth-logout
+
+This event fires when the user has been logged out. This can occur for a variety of reasons, including if the access token attempted to refresh and was unable to do so. The detail will be an object with two properties: `casLogout` that is a boolean indicating whether cas logout occurred, and `redirect` that can be either `false` for no redirect or a string of the URL to which the redirect is pointng.
+
+```js
+document.addEventListener('byu-wabs-auth-logout', function(e) {
+    console.log('Auto refresh set to: ' + e.detail);
+});
+```
+
+#### byu-wabs-auth-update
+
+This event fires when the user has successfully logged in and been authorized. The event detail is an object with the properties `accessToken` and `refreshToken`.
+
+```js
+document.addEventListener('byu-wabs-auth-update', function(e) {
+    console.log('Access Token: ' + e.detail.accessToken);
+    console.log('Encrypted Refresh Token: ' + e.detail.refreshToken);
+});
+```
+
+### Brownie Events
+
+These events are specific to the brownie mode and will only fire if the mode is set to either `manual` or `always`.
+
+#### byu-wabs-brownie-delete
+
+This event fires when a key on the brownie is removed. The detail object has the properties `key` and `value` that indicate what was removed from the brownie object.
+
+```js
+document.addEventListener('byu-wabs-brownie-delete', function(e) {
+    console.log('Key: ' + e.detail.key);
+    console.log('Value: ' + e.detail.value);
+});
+```
+
+#### byu-wabs-brownie-navigate
+
+This event fires whenever the `byu.brownie.navigateTo` function is called and includes in the detail object the properties `encodeNeeded` which specifies whether the server will need to reencode the brownie data, `legacyUrl` which tells whether the page being navigated to is a legacy web application, `target` the browser target window, and `url` the URL to navigate to.
+
+```js
+document.addEventListener('byu-wabs-brownie-navigate', function(e) {
+    console.log('Encode needed: ' + e.detail.encodeNeeded);
+    console.log('Legacy URL: ' + e.detail.legacyUrl);
+    console.log('Target: ' + e.detail.target);
+    console.log('URL: ' + e.detail.url);
+});
+```
+
+#### byu-wabs-brownie-update
+
+This event fires when a key on the brownie is set. The detail object has the properties `key` and `value` that indicate what was removed from the brownie object.
+
+```js
+document.addEventListener('byu-wabs-brownie-update', function(e) {
+    console.log('Key: ' + e.detail.key);
+    console.log('Value: ' + e.detail.value);
+});
+```
