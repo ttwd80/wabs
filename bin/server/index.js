@@ -24,11 +24,17 @@ module.exports = Server;
 
 /**
  * Tell the server to start with the specified configuration.
- * @params {object} config
+ * @params {object} [config]
  **/
 function Server(config) {
     var app = express();
+
+    // handle optional config parameter
+    if (!config || typeof config !== 'object') config = {};
+    if (!config.hasOwnProperty('port')) config.port = Server.options.port.defaultValue;
+
     app.use(Server.middleware(config));
+    
     return new Promise(function(resolve, reject) {
         app.listen(config.port, function(err) {
             if (err) {

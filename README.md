@@ -8,6 +8,7 @@ This application acts as either a **static file server** or a **proxy server** a
 
 * [Installation](#installation)
 * [Starting the Server](#starting-the-server)
+* [Using as Middleware](#using-as-middleware)
 * [Server Options](#server-options)
 * [Authentication / Authorization Options](#authentication--authorization-options)
 * [Brownie Options](#brownie-options)
@@ -17,7 +18,15 @@ This application acts as either a **static file server** or a **proxy server** a
 
 ## Installation
 
-It is recommended that this node package be installed globally:
+If you want to run this as a server, it is recommended that this node package be installed globally. If you only care about the middleware portion then you can install locally.
+
+**Local Install**
+
+```sh
+npm install byu-wabs
+```
+
+**Global Install**
 
 ```sh
 npm install -g byu-wabs
@@ -45,6 +54,44 @@ byu-wabs --port 9000 --authenticate manual --consumer-key cOnsUmerKey --consumer
 
 For a list of options and what they do, please use `byu-wabs --help` from the command line.
 
+## Start the Server with JavaScript
+
+If you want to start the server from within your code you can require the package and call it as a function. The function takes a configuration object as an optional parameter.
+
+The configuration object takes properties that are the same as the options provided through the command line. The only difference is that the property names are camelcase instead of using dashes. For example: `brownie-url` would be `brownieUrl` as a configuration option.
+
+```js
+var server = require('byu-wabs');
+server({});
+```
+
+## Using as Middleware
+
+It is possible to use the core functionality of this package as a piece of middleware for any server that accepts middleware.
+
+The following example shows how to implement it as express middleware:
+
+```js
+var express = require('express');
+var wabs = require('byu-wabs');
+var app = express();
+
+var config = {
+    authenticate: 'manual',
+    consumerKey: 'fooBar',
+    consumerSecret: 'barBaz',
+    encryptSecret: 'fooBaz',
+    src: __dirname + '/..:/'
+}
+
+// here we tell express to user the wabs middleware
+app.use(wabs.middleware(config));
+
+app.listen(3000, function () {
+  console.log('Example app listening on port 3000!');
+});
+```
+
 ## Server Options
 
 ### development
@@ -52,6 +99,7 @@ For a list of options and what they do, please use `byu-wabs --help` from the co
 Set the server into development mode, removing optimizations while improving the ability to debug.
 
 * **alias:** d
+* **name:** development
 * **type:** Boolean
 * **default:** `false`
 
@@ -60,6 +108,7 @@ Set the server into development mode, removing optimizations while improving the
 The endpoint for the web application bootstrap server’s services. Static files that fall within this path will not be served.
 
 * **alias:** e
+* **name:** endpoint
 * **type:** String
 * **default:** `/wabs`
 
@@ -78,6 +127,7 @@ byu-wabs --endpoint /wabs-endpoint
 The port number to start the server on.
 
 * **alias:** p
+* **name:** port
 * **type:** Number
 * **default:** `9000`
 
@@ -106,6 +156,7 @@ byu-wabs --port 80
 Specify a source to serve files from. This can be either a file system path or the URL for another server to proxy requests for. You can also optionally specify the endpoint from which those resources should be available by specifying the path followed by ":" followed by the endpoint. If the endpoint is not specified then "/" is assumed. In short, the src should look like `[source]:[endpoint]:[watch]` where *source* is where to get the content, *endpoint* is the URL endpoint that will load from that source (defaulting to `/`), and *watch* will specify whether to watch that directory for changes (ignored when acting as a proxy).
 
 * **alias:** s
+* **name:** src
 * **type:** String
 * **multiple** true
 * **default:** `./:/`
@@ -137,6 +188,7 @@ This example will also direct any requests to `/proxy` to `http://someserver.com
 The file path to the html file that should be used as the status template. The status template will be used to show generic status pages. Text with `{{status}}`, `{{title}}`, `{{body}}`, and `{{id}}` will be replaced with the status code, title, body, and request ID respectively. If the server is acting as a proxy then status views will not display, instead the response from the proxied server will be sent.
 
 * **alias:** v
+* **name:** statusView
 * **type:** String
 
 **Examples**
@@ -154,6 +206,7 @@ byu-wabs --status-view /var/www/views/status.html
 If the src is pointing to a file system then this option is used to specify whether the file system should be watched for changes. It is recommended that for development this be set to true and for immutable production instances that it be set to false.
 
 * **alias:** w
+* **name:** watch
 * **type:** Boolean
 * **default:** `true`
 
@@ -183,6 +236,7 @@ Specify the level of authentication support. Valid values include `none`, `manua
 `always` - Will force the user to be logged in to use any part of the application.
 
 * **alias:** a
+* **name:** authenticate
 * **type:** String
 * **default:** `none`
 
@@ -205,6 +259,7 @@ byu-wabs --authenticate always --consumer-key conSumerKEy --consumer-secret Cons
 The consumer key from the application defined in WSO2. This value must be set if the --authenticate option is set to either `manual` or `always`.
 
 * **alias:** i
+* **name:** consumerKey
 * **type:** String
 
 ### consumer-secret
@@ -212,6 +267,7 @@ The consumer key from the application defined in WSO2. This value must be set if
 The consumer secret from the application defined in WSO2. This value must be set if the --authenticate option is set to either `manual` or `always`.
 
 * **alias:** t
+* **name:** consumerSecret
 * **type:** String
 
 ### encrypt-secret
@@ -219,6 +275,7 @@ The consumer secret from the application defined in WSO2. This value must be set
 The encryption secret to use to encrypt and decrypt the refresh token that is sent to the client. If this value is not specified then the encrypt secret will be randomly generated. Note that if you have clustered this server that you’ll want to specify the same secret for each.
 
 * **alias:** n
+* **name:** encryptSecret
 * **type:** String
 
 ### well-known-url
@@ -226,6 +283,7 @@ The encryption secret to use to encrypt and decrypt the refresh token that is se
 The well known URL to use to get authentication information from.
 
 * **alias:** k
+* **name:** wellKnownUrl
 * **type:** String
 * **default:** `https://api.byu.edu/.well-known/openid-configuration`
 
@@ -244,6 +302,7 @@ Specify the level of brownie support. Valid values include `none`, `manual`, `al
 `none` - Will not provide brownie support. `manual` - Will provide brownie data and the library but will not automatically trigger brownie data transfer when navigating to a legacy application. `always` - Will provide full brownie support and will automatically cause links that navigate to legacy applications to send that information in a way that the legacy application can capture it.
 
 * **alias:** b
+* **name:** brownie
 * **type:** String
 * **default:** `always`
 
@@ -262,6 +321,7 @@ byu-wabs --brownie always
 The URL to use as a web service to encode and decode brownie data.
 
 * **alias:** u
+* **name:** brownieUrl
 * **type:** String
 * **default:** `https://lambda.byu.edu/ae/prod/brownie-dumper/cgi/brownie-dumper.cgi/json`
 
