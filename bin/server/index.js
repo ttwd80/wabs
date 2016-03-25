@@ -16,6 +16,7 @@ const path          = require('path');
 const Promise       = require('bluebird');
 const proxy         = require('./proxy');
 const request       = require('request');
+const schemata      = require('object-schemata');
 const staticEp      = require('./static');
 const statusView    = require('./view');
 
@@ -42,6 +43,13 @@ function Server(config) {
 }
 
 Server.middleware = function(config) {
+
+    // normalize the configuration
+    const options = Object.assign({}, Server.options, authenticate.options, brownie.options);
+    delete options.port;
+    config = schemata(options).normalize(config);
+
+    // define the middleware
     const mid = {
         authenticate:   null,
         brownie:        brownie(config),
@@ -57,6 +65,8 @@ Server.middleware = function(config) {
         statusView:     statusView(config),
         unhandled:      unhandled
     };
+
+    // map endpoints
     const endpointMap = endpoint.map(config);
 
     // define the initial middleware array
