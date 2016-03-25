@@ -42,7 +42,7 @@ function Authenticate(config, stats) {
     services.register('oauth.code', config.endpoint + '/auth/oauth-code', 'The URL to direct OAuth to that will receive the OAuth code.');
     services.register('oauth.refresh', config.endpoint + '/auth/oauth-refresh', 'The URL to call to attempt to refresh the OAuth token.');
 
-    return function(req, res, next) {
+    return function authenticate(req, res, next) {
 
         // if not a GET then exit
         if (req.method !== 'GET') return next();

@@ -26,56 +26,94 @@ module.exports = Server;
  * @params {object} config
  **/
 function Server(config) {
+    var app = express();
+    app.use(Server.middleware(config));
+    return new Promise(function(resolve, reject) {
+        app.listen(config.port, function(err) {
+            if (err) {
+                console.error('Could not listen on port ' + config.port + '. ' + err.message);
+                reject(err);
+            } else {
+                console.log('Server listening on port ' + config.port);
+                resolve()
+            }
+        });
+    });
+}
+
+Server.middleware = function(config) {
+    const mid = {
+        authenticate:   null,
+        brownie:        brownie(config),
+        compression:    compression({}),
+        cookieParser:   cookieParser(),
+        error:          error,
+        favicon:        null,
+        init:           null,
+        injector:       injector(config),
+        log:            log(),
+        proxy:          proxy(),
+        static:         null,
+        statusView:     statusView(config),
+        unhandled:      unhandled
+    };
     const endpointMap = endpoint.map(config);
+
+    // define the initial middleware array
+    var middleware = [ function(req, res, next) {
+        mid.view(req, res, function(err) {
+            if (err) return next(err);
+            res.sendStatusView(503, 'Initializing Web Application Bootstrap Server Middleware');
+        });
+    }];
 
     // normalize the endpoint
     config.endpoint = endpoint.normalize(config.endpoint);
 
     // start file system mapping
-    return fsStat(config, endpointMap)
+    fsStat(config, endpointMap)
         .then(function(stats) {
-            var app;
-            var mid;
 
-            // set up the middleware
-            mid = {
-                authenticate:   authenticate(config, stats),
-                brownie:        brownie(config),
-                compression:    compression({}),
-                cookieParser:   cookieParser(),
-                error:          error,
-                favicon:        favicon(stats),
-                init:           init(config, endpointMap, stats),
-                injector:       injector(config),
-                log:            log(),
-                proxy:          proxy(),
-                static:         staticEp(config, stats),
-                statusView:     statusView(config),
-                unhandled:      unhandled
-            };
+            // fill in the middleware
+            mid.authenticate = authenticate(config, stats);
+            mid.favicon = favicon(stats);
+            mid.init = init(config, endpointMap, stats);
+            mid.static = staticEp(config, stats);
 
-            // create the express app
-            app = express();
-
-            // add middleware
-            app.use(mid.statusView);    // status code views    - define res.sendStatusView()
-            app.use(mid.log);           // logging              - set up log summary
-            app.use(mid.compression);   // gzip                 - gzip sent responses
-            app.use(mid.init);          // setup                - initialize req.wabs and res.wabs objects
-            app.use(mid.favicon);       // favicon              - send favicon when there is a request for one
-            app.use(mid.cookieParser);  // cookies              - parse cookies
-            app.use(mid.brownie);       // brownie              - define brownie service endpoints, handle posted brownie data
-            app.use(mid.proxy);         // proxy                - get proxied content, analyze and process html
-            app.use(mid.authenticate);  // auth                 - authentication and authorization
-            app.use(mid.injector);      // injector             - define res.sendInjected() and add wabs.js endpoint
-            app.use(mid.static);        // static files         - send the static file content
-            app.use(mid.unhandled);     // unhandled            - send status page for unhandled requests
-            app.use(mid.error);         // error catching       - middleware errors encountered so send 500 status page
-
-            // start the server listening on a port
-            return startServer(app, config.port);
+            // overwrite the initial middleware array
+            middleware = [
+                mid.statusView,
+                mid.log,
+                mid.compression,
+                mid.init,
+                mid.favicon,
+                mid.cookieParser,
+                mid.brownie,
+                mid.proxy,
+                mid.authenticate,
+                mid.injector,
+                mid.static,
+                mid.unhandled,
+                mid.error
+            ];
         });
-}
+
+    // return a middleware function
+    return function(req, res, next) {
+        const chain = middleware.slice(0);
+
+        function handle(req, res, next) {
+            var active = chain.shift();
+            if (!active) return next();
+            active(req, res, function(err) {
+                if (err) return next(err);
+                handle(req, res, next);
+            });
+        }
+
+        handle(req, res, next);
+    };
+};
 
 Server.options = {
     development: {
@@ -247,37 +285,6 @@ Command.define('server', Server, {
     ]
 });
 
-/*
- Additionally, your client application ' +
- 'will have access to two global objects ' + chalk.italic('byu.auth') + ' (used to trigger login, ' +
- 'logout, and authentication refresh) and ' + chalk.italic('byu.user') + ' (an object with data about ' +
- 'the authenticated user). Finally, in these modes you will also have the option to add a meta html ' +
- 'tag that can change the mode between "manual" and "always", using ' +
- chalk.italic('<meta name="wabs-auth" content="always">') + ' and you can set a
- */
-
-function startServer(app, port) {
-    return new Promise(function(resolve, reject) {
-        app.listen(port, function(err) {
-            if (err) {
-                console.error('Could not listen on port ' + port + '. ' + err.message);
-                reject(err);
-            } else {
-                console.log('Server listening on port ' + port);
-                resolve()
-            }
-        });
-    });
-}
-
-function unhandled(req, res, next) {
-    if (req.method !== 'GET') {
-        res.sendStatusView(405);
-    } else {
-        res.sendStatusView(404);
-    }
-}
-
 /**
  * Get middleware that will augment the request object.
  * @param {object} config The application configuration object.
@@ -305,7 +312,7 @@ function init(config, endpointMap, stats) {
         return null;
     }
 
-    return function(req, res, next) {
+    return function init(req, res, next) {
         var urlPath = endpoint.normalize(req.url.split('#')[0].split('?')[0]);
         var match = getEndpointObject(urlPath);
 
@@ -343,4 +350,12 @@ function init(config, endpointMap, stats) {
 
         next();
     };
+}
+
+function unhandled(req, res, next) {
+    if (req.method !== 'GET') {
+        res.sendStatusView(405);
+    } else {
+        res.sendStatusView(404);
+    }
 }

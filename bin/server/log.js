@@ -11,7 +11,7 @@ const uniqueId      = require('../unique-id');
  * Middleware function for logging request and response data.
  */
 module.exports = function() {
-    return function(req, res, next) {
+    return function log(req, res, next) {
         var bytes = 0;
         var date = new Date();
         var logged = false;
@@ -70,7 +70,7 @@ module.exports = function() {
 
         next();
     };
-}
+};
 
 function getMetric(value) {
     var index = 0;

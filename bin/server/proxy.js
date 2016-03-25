@@ -3,7 +3,7 @@ const injector      = require('./injector');
 const request       = require('request');
 
 module.exports = function() {
-    return function(req, res, next) {
+    return function proxy(req, res, next) {
 
         // if this isn't a proxy request then return now
         if (!req.wabs.proxy) return next();

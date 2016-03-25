@@ -20,7 +20,7 @@ function statusViewHandler(config) {
     // get the template content
     template = fs.readFileSync(templatePath, 'utf8');
 
-    return function(req, res, next) {
+    return function view(req, res, next) {
 
         // define the res.sendStatusView function
         res.sendStatusView = function(status, title, body) {

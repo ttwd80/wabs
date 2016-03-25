@@ -43,7 +43,7 @@ function Brownie(config) {
     services.register('brownie.encode', config.endpoint + '/brownie/encode', 'A URL to call with PUT and brownie body to get back an encoded brownie from.');
 
     // return brownie middleware
-    return function(req, res, next) {
+    return function brownie(req, res, next) {
         if (req.method === 'POST' && !req.wabs.endpoint) {
             decode(crypto, req, res, next);
         } else if (req.method === 'PUT' && req.wabs.endpoint === 'brownie/encode') {

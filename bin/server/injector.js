@@ -25,7 +25,7 @@ function injector(config) {
         full: scripts.init + scripts.auth + scripts.brownie
     };
 
-    return function(req, res, next) {
+    return function injector(req, res, next) {
         var match;
         if (req.method !== 'GET') return next();
 

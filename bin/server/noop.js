@@ -1,5 +1,5 @@
 "use strict";
 
-module.exports = function(req, res, next) {
+module.exports = function noop(req, res, next) {
     next();
 };

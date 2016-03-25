@@ -6,7 +6,7 @@ const path          = require('path');
 const request       = require('request');
 
 module.exports = function(config, stats) {
-    return function(req, res, next) {
+    return function view(req, res, next) {
 
         // if not GET or if a wabs endpoint then exit
         if (req.method !== 'GET' || req.wabs.endpoint) return next();
