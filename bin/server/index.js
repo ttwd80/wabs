@@ -62,7 +62,6 @@ Server.middleware = function(config) {
         compression:    compression({}),
         cookieParser:   cookieParser(),
         error:          error,
-        express:        expressLike(),
         favicon:        null,
         init:           null,
         injector:       injector(config),
@@ -78,12 +77,9 @@ Server.middleware = function(config) {
 
     // define the initial middleware array
     var middleware = [ function(req, res, next) {
-        mid.express(req, res, function(err) {
+        mid.statusView(req, res, function(err) {
             if (err) return next(err);
-            mid.statusView(req, res, function(err) {
-                if (err) return next(err);
-                res.sendStatusView(503, 'Initializing Web Application Bootstrap Server Middleware');
-            });
+            res.sendStatusView(503, 'Initializing Web Application Bootstrap Server Middleware');
         });
     }];
 
@@ -102,7 +98,6 @@ Server.middleware = function(config) {
 
             // overwrite the initial middleware array
             middleware = [
-                mid.express,
                 mid.statusView,
                 mid.log,
                 mid.compression,
@@ -305,21 +300,6 @@ Command.define('server', Server, {
         }
     ]
 });
-
-function expressLike() {
-    return function(req, res, next) {
-
-        // if we aren't running on express then add some functionality
-        if (typeof res.status !== 'function') {
-            res.status = function(code) {
-                res.statusCode = code;
-                return res;
-            }
-        }
-
-        next();
-    };
-}
 
 /**
  * Get middleware that will augment the request object.
