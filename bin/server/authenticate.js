@@ -31,7 +31,8 @@ function Authenticate(config, stats) {
     const wkUrl = config.wellKnownUrl;
 
     function getRedirectUrl(req, endpoint) {
-        var url = req.protocol + '://' + req.get('host') + config.endpoint + '/auth/';
+        var host = (config.host ? config.host : req.protocol + '://' + req.get('host')).replace(/\/$/, '') + '/';
+        var url = host + config.endpoint + '/auth/';
         if (endpoint) url += endpoint;
         return url;
     }
@@ -144,6 +145,15 @@ Authenticate.options = {
             'If this value is not specified then the encrypt secret will be randomly generated. Note that if you have ' +
             'clustered this server that you\'ll want to specify the same secret for each.',
         type: String,
+        group: 'auth'
+    },
+    host: {
+        alias: 'h',
+        description: 'The full host name including protocol and port number that will be used to reach this server. ' +
+        'If not specified then the server will automatically attempt to determine this information, but if the ' +
+        'server is behind a proxy then it will be incorrect.',
+        type: String,
+        defaultValue: '',
         group: 'auth'
     },
     wellKnownUrl: {
