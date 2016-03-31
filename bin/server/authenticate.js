@@ -31,7 +31,7 @@ function Authenticate(config, stats) {
     const wkUrl = config.wellKnownUrl;
 
     function getRedirectUrl(req, endpoint) {
-        var host = (config.host ? config.host : req.protocol + '://' + req.get('host')).replace(/\/$/, '') + '/';
+        var host = (config.host ? config.host : req.protocol + '://' + req.get('host')).replace(/\/$/, '');
         var url = host + config.endpoint + '/auth/';
         if (endpoint) url += endpoint;
         return url;
