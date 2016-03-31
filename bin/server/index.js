@@ -358,7 +358,7 @@ function init(config, endpointMap, stats) {
 
         } else if (match) {
             req.wabs.fsStat = stats.get(urlPath);
-            if (req.wabs.fsStat.stats.html) {
+            if (req.wabs.fsStat && req.wabs.fsStat.stats && req.wabs.fsStat.stats.html) {
                 req.wabs.content = req.wabs.fsStat.stats.html;
                 req.wabs.inject = true;
             }
