@@ -7,7 +7,6 @@
     var cookieName = 'wabs-auth';
     var dispatch = byu.__dispatch;
     var expires;
-    var initTime;
     var logoutIframe;
     var refreshToken;
 
@@ -50,7 +49,7 @@
     Object.defineProperty(auth, 'expires', {
         enumerable: true,
         configurable: false,
-        get: function() { return expires ? expires - (Date.now() - initTime) : void 0; },
+        get: function() { return expires ? expires - Date.now() : void 0; },
         set: function() { throw Error('expires is read only'); }
     });
 
@@ -209,7 +208,6 @@
         // update access information
         accessToken = data ? data.accessToken : void 0;
         expires = data ? Date.now() + (data.expiresIn * 1000) : void 0;
-        initTime = data ? data.timestamp : void 0;
         refreshToken = data ? data.refreshToken : void 0;
 
         // update the user
