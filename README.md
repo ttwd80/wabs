@@ -15,6 +15,7 @@ This application acts as either a **static file server** or a **proxy server** a
 * [Client Application Authentication / Authorization Tools](#client-application-authentication--authorization-tools)
 * [Client Application Brownie Tools](#client-application-brownie-tools)
 * [Client Events](#client-events)
+* [Web Services](#web-services)
 
 ## Installation
 
@@ -105,7 +106,7 @@ Set the server into development mode, removing optimizations while improving the
 
 ### endpoint
 
-The endpoint for the web application bootstrap server’s services. Static files that fall within this path will not be served.
+The endpoint for the [web application bootstrap server’s services](#web-services). Static files that fall within this path will not be served.
 
 * **alias:** e
 * **name:** endpoint
@@ -671,3 +672,15 @@ document.addEventListener('byu-wabs-brownie-update', function(e) {
     console.log('Value: ' + e.detail.value);
 });
 ```
+
+## Web Services
+
+You probably only care about a single web service provided by the web application bootstrap server, namely the service that WSO2 must redirect the browser to with the OAuth code:
+
+```
+/wabs/auth/oauth-code
+```
+
+The URL may be different if you modified the [server endpoint option](#endpoint).
+
+To see a list of all available services, load up your client application and look at the JavaScript object `byu.wabs.services`.
