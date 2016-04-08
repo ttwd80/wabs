@@ -91,6 +91,14 @@ app.listen(3000, function () {
   console.log('Example app listening on port 3000!');
 });
 ```
+## Configuration via Environment Variables
+
+Some options can be configured via the setting of an environment variable. These environment variables can alo be passed
+in via a file, using the --env-file flag.  For example, 'byu wabs --env-file development.env' will load all variables
+defined in development.env.
+
+Options specified in an --env-file will always override settings in the normal environment, and command-line arguments
+will always override the env file.
 
 ## Server Options
 
@@ -130,6 +138,7 @@ The port number to start the server on.
 * **name:** port
 * **type:** Number
 * **default:** `9000`
+* **environment variable:** `WABS_PORT`
 
 **Examples**
 
@@ -239,6 +248,7 @@ Specify the level of authentication support. Valid values include `none`, `manua
 * **name:** authenticate
 * **type:** String
 * **default:** `none`
+* **environment variable:** `WABS_AUTHENTICATE`
 
 **Examples**
 
@@ -261,6 +271,7 @@ The consumer key from the application defined in WSO2. This value must be set if
 * **alias:** i
 * **name:** consumerKey
 * **type:** String
+* **environment variable:** `WABS_CONSUMER_KEY`
 
 ### consumer-secret
 
@@ -269,6 +280,7 @@ The consumer secret from the application defined in WSO2. This value must be set
 * **alias:** t
 * **name:** consumerSecret
 * **type:** String
+* **environment variable:** `WABS_CONSUMER_SECRET`
 
 ### encrypt-secret
 
@@ -277,6 +289,7 @@ The encryption secret to use to encrypt and decrypt the refresh token that is se
 * **alias:** n
 * **name:** encryptSecret
 * **type:** String
+* **environment variable:** `WABS_ENCRYPT_SECRET`
 
 ### well-known-url
 
@@ -286,6 +299,7 @@ The well known URL to use to get authentication information from.
 * **name:** wellKnownUrl
 * **type:** String
 * **default:** `https://api.byu.edu/.well-known/openid-configuration`
+* **environment variable:** `WABS_WELL_KNOWN_URL`
 
 ## Brownie Options
 
@@ -305,6 +319,7 @@ Specify the level of brownie support. Valid values include `none`, `manual`, `al
 * **name:** brownie
 * **type:** String
 * **default:** `always`
+* **environment variable:** `WABS_BROWNIE`
 
 **Examples**
 
@@ -324,6 +339,7 @@ The URL to use as a web service to encode and decode brownie data.
 * **name:** brownieUrl
 * **type:** String
 * **default:** `https://lambda.byu.edu/ae/prod/brownie-dumper/cgi/brownie-dumper.cgi/json`
+* **environment variable:** `WABS_BROWNIE_URL`
 
 **Examples**
 

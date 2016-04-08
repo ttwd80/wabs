@@ -4,11 +4,11 @@ const envFile = require('envfile');
 module.exports = mapEnv;
 
 function mapEnv(options, optConfig) {
-    _process(options, optConfig, process.env);
     if (options.envFile) {
         var parsed = envFile.parseFileSync(options.envFile);
         _process(options, optConfig, parsed);
     }
+    _process(options, optConfig, process.env);
 }
 
 function _process(options, optionConfig, env) {
