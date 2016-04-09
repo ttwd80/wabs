@@ -9,6 +9,7 @@ const error         = require('./error');
 const endpoint      = require('./endpoint');
 const express       = require('express');
 const favicon       = require('./favicon');
+const loadFromEnv   = require('./env');
 const injector      = require('./injector');
 const log           = require('./log');
 const fsStat        = require('../fs-stat');
@@ -27,6 +28,8 @@ module.exports = Server;
  * @params {object} [config]
  **/
 function Server(config) {
+    loadFromEnv(config, Server.options);
+
     var app = express();
 
     // handle optional config parameter
@@ -146,11 +149,17 @@ Server.options = {
         defaultValue: '/wabs',
         group: 'server'
     },
+    envFile: {
+        description: 'Path to an environment file (relative to the current working directory and in JSON or ENV format)' +
+        ' from which to load environment variables.',
+        type: String
+    },
     port: {
         alias: 'p',
         description: 'The port number to start the server on.',
         type: Number,
         defaultValue: 9000,
+        envVar: 'WABS_PORT',
         group: 'server'
     },
     src: {

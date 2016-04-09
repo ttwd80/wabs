@@ -25,6 +25,7 @@
     "express": "^4.13.4",
     "fs-map": "^1.0.0",
     "http-status-codes": "^1.0.6",
+    "node-env-file": "^0.1.8",
     "object-schemata": "^1.0.8",
     "on-finished": "^2.3.0",
     "on-headers": "^1.0.1",

@@ -2,6 +2,7 @@
 const camel             = require('../camel');
 const chalk             = require('chalk');
 const crypto            = require('crypto');
+const loadFromEnv       = require('./env');
 const noop              = require('./noop');
 const oauth             = require('byu-wabs-oauth');
 const path              = require('path');
@@ -16,6 +17,7 @@ const authStage = {
 };
 
 function Authenticate(config, stats) {
+    loadFromEnv(config, Authenticate.options);
     console.log('Authenticate mode: ' + config.authenticate);
 
     if (config.authenticate === 'none') return noop;
@@ -123,6 +125,7 @@ Authenticate.options = {
         transform: (v) => v.toLowerCase(),
         validate: (v) => ['none', 'manual', 'always'].indexOf(v.toLowerCase()) !== -1,
         defaultValue: 'none',
+        envVar: 'WABS_AUTHENTICATE',
         group: 'auth'
     },
     consumerKey: {
@@ -130,13 +133,15 @@ Authenticate.options = {
         description: 'The consumer key from the application defined in WSO2. This value must be set if the ' +
             chalk.italic('--authenticate') + ' option is set to either "manual" or "always".',
         type: String,
+        envVar: 'WABS_CONSUMER_KEY',
         group: 'auth'
     },
     consumerSecret: {
         alias: 't',
         description: 'The consumer secret from the application defined in WSO2. This value must be set if the ' +
             chalk.italic('--authenticate') + ' option is set to either "manual" or "always".',
-        type: String,
+        type: String, 
+        envVar: 'WABS_CONSUMER_SECRET',
         group: 'auth'
     },
     encryptSecret: {
@@ -144,7 +149,8 @@ Authenticate.options = {
         description: 'The encryption secret to use to encrypt and decrypt the refresh token that is sent to the client. ' +
             'If this value is not specified then the encrypt secret will be randomly generated. Note that if you have ' +
             'clustered this server that you\'ll want to specify the same secret for each.',
-        type: String,
+        type: String, 
+        envVar: 'WABS_ENCRYPT_SECRET',
         group: 'auth'
     },
     host: {
@@ -154,13 +160,15 @@ Authenticate.options = {
         'server is behind a proxy then it will be incorrect.',
         type: String,
         defaultValue: '',
+        envVar: 'WABS_HOST',
         group: 'auth'
     },
     wellKnownUrl: {
         alias: 'k',
         description: 'The well known URL to use to get authentication information from.',
         type: String,
-        defaultValue: 'https://api.byu.edu/.well-known/openid-configuration',
+        defaultValue: 'https://api.byu.edu/.well-known/openid-configuration', 
+        envVar: 'WABS_WELL_KNOWN_URL',
         group: 'auth'
     }
 };
