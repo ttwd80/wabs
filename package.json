@@ -22,6 +22,7 @@
     "connect-timeout": "^1.7.0",
     "cookie-parser": "^1.4.1",
     "custom-error-instance": "^2.1.1",
+    "envfile": "^2.0.1",
     "express": "^4.13.4",
     "fs-map": "^1.0.0",
     "http-status-codes": "^1.0.6",
