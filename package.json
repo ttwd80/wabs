@@ -42,7 +42,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/BYU-OIT/wabs.git"
+    "url": "git+https://github.com/byu-oit-appdev/wabs.git"
   },
   "keywords": [
     "static",
@@ -54,7 +54,7 @@
   "author": "James Speirs",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/BYU-OIT/wabs/issues"
+    "url": "https://github.com/byu-oit-appdev/wabs/issues"
   },
-  "homepage": "https://github.com/BYU-OIT/wabs#readme"
+  "homepage": "https://github.com/byu-oit-appdev/wabs#readme"
 }
