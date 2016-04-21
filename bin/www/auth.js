@@ -252,7 +252,7 @@
 
     // look for auth-auto-refresh metadata and set auto refresh
     (function() {
-        var element = document.querySelector('meta[name="wabs-auth-refresh]');
+        var element = document.querySelector('meta[name="wabs-auth-refresh"]');
         if (!element) {
             auth.autoRefresh = 0;
         } else {
