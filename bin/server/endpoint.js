@@ -25,7 +25,7 @@ exports.map = function(config) {
         // if a url to proxy
         if (match) {
             source = match[1].replace(/\/$/, '');
-            endpoint = src.substr(source.length + 2).split(':')[0];
+            endpoint = src.substr(source.length + 1).split(':')[0];
             watch = false;
             isProxy = true;
 
