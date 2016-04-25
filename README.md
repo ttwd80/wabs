@@ -223,11 +223,39 @@ If the src is pointing to a file system then this option is used to specify whet
 **Examples**
 
 ```sh
-byu-wabs -v ./views/status.html
+byu-wabs -w
 ```
 
 ```sh
-byu-wabs --status-view /var/www/views/status.html
+byu-wabs --watch
+```
+
+### watch-ignore
+
+Specify one or more directories to not watch for changes, using [anymatch](https://github.com/es128/anymatch) patterns.
+
+* **alias:** i
+* **name:** watch-ignore
+* **type:** String
+* **multiple** true
+
+### watch-polling
+
+If you want to watch files through a network share or through a mounted file system then you may need to enable polling. Setting this option will specify the number of milliseconds to use as the file system polling rate.
+
+* **alias:** W
+* **name:** watch-polling
+* **type:** Number
+* **default:** `0`
+
+**Examples**
+
+```sh
+byu-wabs -W 300
+```
+
+```sh
+byu-wabs --watch-polling 300
 ```
 
 ## Authentication / Authorization Options
