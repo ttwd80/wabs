@@ -28,8 +28,8 @@ module.exports = function(config, endpointMap) {
         var promise;
         if (!data.proxy) {
             promise = data.watch ?
-                dynamicMap(data.source, data.endpoint, store) :
-                staticMap(data.source, data.endpoint, store);
+                dynamicMap(config, data.source, data.endpoint, store) :
+                staticMap(onfig, data.source, data.endpoint, store);
             promises.push(promise);
         }
     });
@@ -113,16 +113,26 @@ Object.defineProperty(module.exports, 'error', {
 
 /**
  * Bind a dynamic file system map to the store.
+ * @param {object} config
  * @param {string} src
  * @param {string} endpoint
  * @param {object} store
  * @returns {Promise}
  */
-function dynamicMap(src, endpoint, store) {
+function dynamicMap(config, src, endpoint, store) {
     return new Promise(function (resolve, reject) {
         var watchReady = false;
         var promises = [];
-        chokidar.watch(src, { alwaysStat: true })
+
+        // build the choidar configuration object
+        var chokConfig = { alwaysStat: true };
+        if (config.watchPolling) {
+            chokConfig.usePolling = true;
+            chokConfig.interval = config.watchPolling;
+        }
+        chokConfig.ignore = config.watchIgnore;
+
+        chokidar.watch(src, chokConfig)
             .on('add', function(filePath, stats) {
                 var promise = store.add(src, filePath, endpoint, stats);
                 if (!watchReady) promises.push(promise);
@@ -141,12 +151,13 @@ function dynamicMap(src, endpoint, store) {
 
 /**
  * Build a file system map into the store.
+ * @param {object} config
  * @param {string} src
  * @param {string} endpoint
  * @param {object} store
  * @returns {Promise}
  */
-function staticMap(src, endpoint, store) {
+function staticMap(config, src, endpoint, store) {
     return fsMap(src)
         .then(function(data) {
             var promises = [];
