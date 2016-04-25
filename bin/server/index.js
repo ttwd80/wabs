@@ -139,6 +139,7 @@ Server.options = {
         alias: 'd',
         description: 'Set the server into development mode, removing optimizations while improving the ability to debug.',
         type: Boolean,
+        envVar: 'WABS_DEVELOPMENT',
         group: 'server'
     },
     endpoint: {
@@ -147,6 +148,7 @@ Server.options = {
         'fall within this path will not be served.',
         type: String,
         defaultValue: '/wabs',
+        envVar: 'WABS_ENDPOINT',
         group: 'server'
     },
     envFile: {
@@ -175,6 +177,7 @@ Server.options = {
         type: String,
         multiple: true,
         defaultValue: './:/',
+        envVar: 'WABS_SRC',
         group: 'server'
     },
     statusView: {
@@ -185,6 +188,7 @@ Server.options = {
         'server is acting as a proxy then status views will not display, instead the response from the proxied ' +
         'server will be sent.',
         type: String,
+        envVar: 'WABS_STATUS_VIEW',
         group: 'server'
     },
     watch: {
@@ -194,6 +198,26 @@ Server.options = {
         'true and for immutable production instances that it be set to false.',
         type: Boolean,
         defaultValue: true,
+        envVar: 'WABS_WATCH',
+        group: 'server'
+    },
+    watchIgnore: {
+        alias: 'g',
+        description: 'Specify one or more directories to not watch for changes, using anymatch ' +
+        '(https://github.com/es128/anymatch) patterns.',
+        type: String,
+        multiple: true,
+        envVar: 'WABS_WATCH_IGNORE',
+        group: 'server'
+    },
+    watchPolling: {
+        alias: 'W',
+        description: 'If you want to watch files through a network share or through a mounted file system then ' +
+        'you may need to enable polling. Setting this option will specify the number of milliseconds to use as ' +
+        'the file system polling rate.',
+        type: Number,
+        validate: function(v) { return v > 0; },
+        envVar: 'WABS_WATCH_POLLING',
         group: 'server'
     }
 };
