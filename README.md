@@ -111,6 +111,7 @@ Set the server into development mode, removing optimizations while improving the
 * **name:** development
 * **type:** Boolean
 * **default:** `false`
+* **environment variable:** `WABS_DEVELOPMENT`
 
 ### endpoint
 
@@ -120,6 +121,7 @@ The endpoint for the [web application bootstrap server’s services](#web-servic
 * **name:** endpoint
 * **type:** String
 * **default:** `/wabs`
+* **environment variable:** `WABS_ENDPOINT`
 
 **Examples**
 
@@ -170,6 +172,7 @@ Specify a source to serve files from. This can be either a file system path or t
 * **type:** String
 * **multiple** true
 * **default:** `./:/`
+* **environment variable:** `WABS_SRC`
 
 **Example: Proxy with Default Endpoint**
 
@@ -200,6 +203,7 @@ The file path to the html file that should be used as the status template. The s
 * **alias:** v
 * **name:** statusView
 * **type:** String
+* **environment variable:** `WABS_STATUS_VIEW`
 
 **Examples**
 
@@ -219,6 +223,7 @@ If the src is pointing to a file system then this option is used to specify whet
 * **name:** watch
 * **type:** Boolean
 * **default:** `true`
+* **environment variable:** `WABS_WATCH`
 
 **Examples**
 
@@ -234,10 +239,11 @@ byu-wabs --watch
 
 Specify one or more directories to not watch for changes, using [anymatch](https://github.com/es128/anymatch) patterns.
 
-* **alias:** i
+* **alias:** g
 * **name:** watch-ignore
 * **type:** String
 * **multiple** true
+* **environment variable:** `WABS_WATCH_IGNORE`
 
 ### watch-polling
 
@@ -247,6 +253,7 @@ If you want to watch files through a network share or through a mounted file sys
 * **name:** watch-polling
 * **type:** Number
 * **default:** `0`
+* **environment variable:** `WABS_WATCH_POLLING`
 
 **Examples**
 
