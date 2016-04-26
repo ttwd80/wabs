@@ -81,7 +81,7 @@
         refreshToken = void 0;
         eraseCookie(cookieName);
         clearTimeout(autoRefreshTimeoutId);
-        byu.user = void 0;
+        byu.user = null;
 
         // initialize optional arguments
         if (arguments.length < 1) casLogout = true;
@@ -211,7 +211,7 @@
         refreshToken = data ? data.refreshToken : void 0;
 
         // update the user
-        window.byu.user = data ? data.openId : void 0;
+        window.byu.user = data ? data.openId : null;
 
         // reset timeout
         setAutoRefreshTimeout();
