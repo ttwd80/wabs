@@ -2,8 +2,6 @@
     "use strict";
     var byu = {};
 
-
-
     byu.jwt = null;
 
     byu.user = null;
