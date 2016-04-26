@@ -11,7 +11,6 @@ exports.to = function(sep, text) {
         subStr = text.substring(index, match.index).toLowerCase();
         if (subStr) result += subStr + sep;
         index = match.index;
-        console.log(match);
     }
 
     return result + text.substr(index).toLowerCase();
