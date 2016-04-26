@@ -38,6 +38,7 @@ module.exports = function() {
             if (!/\./.test(diff)) diff += '.0';
 
             console.log(
+                chalk.bold('[REQ]') + '  : ' +
                 req.id + ' : ' +
                 chalk.magenta(received) + ' : ' +
                 chalk.cyan(res.statusCode) + ' : ' +
