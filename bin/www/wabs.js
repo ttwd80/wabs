@@ -4,17 +4,9 @@
 
 
 
-    byu.jwt = (function() {
-        var user;
+    byu.jwt = null;
 
-        return user;
-    });
-
-    byu.user = (function() {
-        var user;
-
-        return user;
-    });
+    byu.user = null;
 
     //put the brownie factory into the window namespace
     Object.defineProperty(window, 'byu', {
