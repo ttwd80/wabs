@@ -201,15 +201,6 @@ Server.options = {
         envVar: 'WABS_WATCH',
         group: 'server'
     },
-    watchIgnore: {
-        alias: 'g',
-        description: 'Specify one or more directories to not watch for changes, using anymatch ' +
-        '(https://github.com/es128/anymatch) patterns.',
-        type: String,
-        multiple: true,
-        envVar: 'WABS_WATCH_IGNORE',
-        group: 'server'
-    },
     watchPolling: {
         alias: 'W',
         description: 'If you want to watch files through a network share or through a mounted file system then ' +
