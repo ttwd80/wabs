@@ -130,7 +130,6 @@ function dynamicMap(config, src, endpoint, store) {
             chokConfig.usePolling = true;
             chokConfig.interval = config.watchPolling;
         }
-        chokConfig.ignore = config.watchIgnore;
 
         chokidar.watch(src, chokConfig)
             .on('add', function(filePath, stats) {
@@ -180,20 +179,38 @@ function statStore() {
         files: {}
     };
 
-    function removeEndpoint(endpoint, root, filePath) {
-        var index;
+    function fitString(str, length) {
+        var newLength;
+        if (str.length > length) {
+            newLength = Math.floor((length - 3) / 2);
+            str = str.substr(0, newLength) + '...' + str.substr(str.length - newLength);
+        }
+        while (str.length < length) str += ' ';
+        return str;
+    }
+
+    function getFileKey(endpoint, root, filePath) {
         var relative = path.relative(root, filePath);
-        var key = path.resolve(endpoint, relative);
+        return path.resolve(endpoint, relative);
+    }
+
+    function removeEndpoint(endpoint, filePath) {
+        var index;
 
         // remove the actual document file path mapping from the endpoint
-        if (store.endpoints.hasOwnProperty(key)) {
-            index = store.endpoints[key].indexOf(filePath);
-            store.endpoints[key].splice(index, 1);
-            console.log('Un-map endpoint ' + chalk.bold(endpoint) + ' from ' + chalk.bold(filePath));
+        if (store.endpoints.hasOwnProperty(endpoint)) {
+            index = store.endpoints[endpoint].indexOf(filePath);
+            store.endpoints[endpoint].splice(index, 1);
+
+            console.log(
+                chalk.red('[-MAP]') + ' : ' +
+                chalk.cyan(fitString(endpoint, 22)) + ' : ' +
+                chalk.yellow(filePath)
+            );
         }
 
         // if the endpoint is empty then remove the endpoint
-        if (store.endpoints[key].length === 0) delete store.endpoints[key];
+        if (store.endpoints[endpoint].length === 0) delete store.endpoints[endpoint];
     }
 
     function setEndpoint(endpoint, filePath) {
@@ -201,13 +218,63 @@ function statStore() {
         // map the endpoint file path to the actual document file path
         if (!store.endpoints.hasOwnProperty(endpoint)) store.endpoints[endpoint] = [];
         store.endpoints[endpoint].push(filePath);
-        console.log('Map endpoint ' + chalk.bold(endpoint) + ' to ' + chalk.bold(filePath));
+
+        console.log(
+            chalk.green('[+MAP]') + ' : ' +
+            chalk.cyan(fitString(endpoint, 22)) + ' : ' +
+            chalk.yellow(filePath)
+        );
 
         // notify of conflicting file paths
         if (store.endpoints[endpoint].length > 1) {
             console.warn('Endpoint conflict at ' + endpoint + ' from ' + store.endpoints[endpoint].join(', '));
             store.endpoints[endpoint].sort();
         }
+    }
+
+    function updateStore(added, root, filePath, endpoint, stats) {
+        var key = getFileKey(endpoint, root, filePath);
+
+        // if it is not a file then return
+        if (!stats.isFile()) return Promise.resolve();
+
+        // store the stats object
+        store.files[filePath] = stats;
+
+        // if the path is not an html file then just cache the stats as is
+        if (!rxHtml.test(filePath)) {
+            setEndpoint(key, filePath);
+            return Promise.resolve();
+        }
+
+        // read the content of the html file
+        return readFile(filePath, 'utf8')
+            .then(function (content) {
+                var data;
+                var html;
+
+                // process the html
+                data = injector.process(content);
+                html = data.html;
+
+                // store authentication mode data
+                stats.authMode = data.authMode;
+
+                // if the html was modified then add html to the stats object
+                if (data.changed) stats.html = html;
+
+                // set the endpoints
+                if (added) {
+                    setEndpoint(key, filePath);
+                    if (rxIndexHtml.test(path.basename(filePath))) setEndpoint(path.dirname(key), filePath);
+                } else {
+                    console.log(
+                        chalk.blue('[\u00b1MAP]') + ' : ' +
+                        chalk.cyan(fitString(endpoint, 22)) + ' : ' +
+                        chalk.yellow(filePath)
+                    );
+                }
+            });
     }
 
     return {
@@ -221,9 +288,7 @@ function statStore() {
          * @returns {Promise}
          */
         add: function(root, filePath, endpoint, stats) {
-            if (!stats.hasOwnProperty('count')) stats.count = 0;
-            stats.count++;
-            return this.update(root, filePath, endpoint, stats);
+            return updateStore(true, root, filePath, endpoint, stats);
         },
 
         /**
@@ -245,18 +310,11 @@ function statStore() {
          * @param {string} endpoint
          */
         remove: function(root, filePath, endpoint) {
-            var key;
-            var relative;
-
+            var key = getFileKey(endpoint, root, filePath);
             if (store.files.hasOwnProperty(filePath)) {
-                relative = path.relative(root, filePath);
-                key = path.resolve(endpoint, relative);
-                stats.count--;
-                if (stats.count === 0) {
-                    delete store.files[filePath];
-                    removeEndpoint(key, filePath);
-                    if (rxIndexHtml.test(path.basename(filePath))) removeEndpoint(path.dirname(key), filePath);
-                }
+                delete store.files[filePath];
+                removeEndpoint(key, filePath);
+                if (rxIndexHtml.test(path.basename(filePath))) removeEndpoint(key, filePath);
             }
         },
 
@@ -269,43 +327,7 @@ function statStore() {
          * @returns {Promise}
          */
         update: function(root, filePath, endpoint, stats) {
-            var relative = path.relative(root, filePath);
-
-            // if it is not a file then return
-            if (!stats.isFile()) return Promise.resolve();
-
-            // if the path is not an html file then just cache the stats as is
-            if (!rxHtml.test(filePath)) {
-                store.files[filePath] = stats;
-                console.log('Updated: ' + chalk.cyan(relative));
-                setEndpoint(path.resolve(endpoint, relative), filePath);
-                return Promise.resolve();
-            }
-
-            // read the content of the html file
-            return readFile(filePath, 'utf8')
-                .then(function (content) {
-                    var data;
-                    var html;
-                    var key;
-
-                    // process the html
-                    data = injector.process(content);
-                    html = data.html;
-
-                    // store authentication mode data
-                    stats.authMode = data.authMode;
-
-                    // if the html was modified then add html to the stats object
-                    if (data.changed) stats.html = html;
-
-                    // store the stats object
-                    store.files[filePath] = stats;
-                    key = path.resolve(endpoint, relative);
-                    console.log('Updated: ' + chalk.cyan(relative));
-                    setEndpoint(key, filePath);
-                    if (rxIndexHtml.test(path.basename(key))) setEndpoint(path.dirname(key), filePath);
-                });
+            return updateStore(false, root, filePath, endpoint, stats);
         }
     }
 }
