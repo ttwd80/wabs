@@ -7,8 +7,9 @@ This application acts as either a **static file server** or a **proxy server** a
 ## Quick Links
 
 * [Installation](#installation)
+* [Authentication and Authorization](#authentication-and-authorization)
 * [Starting the Server](#starting-the-server)
-* [Using as Middleware](#using-as-middleware)
+* [Using as Express Middleware](#using-as-express-middleware)
 * [Server Options](#server-options)
 * [Authentication / Authorization Options](#authentication--authorization-options)
 * [Brownie Options](#brownie-options)
@@ -55,6 +56,10 @@ byu-wabs --port 9000 --authenticate manual --consumer-key cOnsUmerKey --consumer
 
 For a list of options and what they do, please use `byu-wabs --help` from the command line.
 
+## Authentication and Authorization
+
+For the Web Application Bootstrap Server, authentication and authorization are essentially inseparable. This is because the user must authorize (through OAuth) the application to act on the user's behalf. If a user is authenticated but the application is not authorized then the application can do nothing.
+
 ## Start the Server with JavaScript
 
 If you want to start the server from within your code you can require the package and call it as a function. The function takes a configuration object as an optional parameter.
@@ -66,9 +71,9 @@ var server = require('byu-wabs');
 server({});
 ```
 
-## Using as Middleware
+## Using as Express Middleware
 
-It is possible to use the core functionality of this package as a piece of middleware for any server that accepts middleware.
+It is possible to use the core functionality of this package as a piece of middleware for any server that accepts express middleware.
 
 The following example shows how to implement it as express middleware:
 
@@ -403,7 +408,7 @@ Your client application will have access to two global objects:
 
 #### byu.user
 
-An `Object` with data about the authenticated user. This information is provided through OAuth when the user authenticates and authorizes. If the user is not authenticated and has authorized then this object will have a value of `undefined`.
+An `Object` with data about the authenticated user. This information is provided through OAuth when the user authenticates and authorizes. If the user is not authenticated and has authorized then this object will have a value of `null`.
 
 #### byu.auth
 
