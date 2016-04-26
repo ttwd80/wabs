@@ -277,6 +277,7 @@ function statStore() {
             // if the path is not an html file then just cache the stats as is
             if (!rxHtml.test(filePath)) {
                 store.files[filePath] = stats;
+                console.log('Updated: ' + chalk.cyan(relative));
                 setEndpoint(path.resolve(endpoint, relative), filePath);
                 return Promise.resolve();
             }
@@ -301,6 +302,7 @@ function statStore() {
                     // store the stats object
                     store.files[filePath] = stats;
                     key = path.resolve(endpoint, relative);
+                    console.log('Updated: ' + chalk.cyan(relative));
                     setEndpoint(key, filePath);
                     if (rxIndexHtml.test(path.basename(key))) setEndpoint(path.dirname(key), filePath);
                 });
