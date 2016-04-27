@@ -11,6 +11,7 @@ const express       = require('express');
 const favicon       = require('./favicon');
 const loadFromEnv   = require('./env');
 const injector      = require('./injector');
+const init          = require('./init');
 const log           = require('./log');
 const fsStat        = require('../fs-stat');
 const path          = require('path');
@@ -324,73 +325,6 @@ Command.define('server', Server, {
         }
     ]
 });
-
-/**
- * Get middleware that will augment the request object.
- * @param {object} config The application configuration object.
- * @param {object} endpointMap The endpoint map object.
- * @param {object} stats The file stats object.
- * @returns {Function}
- */
-function init(config, endpointMap, stats) {
-    var endpointKeys = Object.keys(endpointMap);
-
-    // sort endpoint keys by path length, longest first
-    endpointKeys.sort(function(a, b) {
-        var lenA = a.split('/').length;
-        var lenB = b.split('/').length;
-        return lenA > lenB ? -1 : 1;
-    });
-
-    function getEndpointObject(url) {
-        var i;
-        var key;
-        for (i = 0; i < endpointKeys.length; i++) {
-            key = endpointKeys[i];
-            if (url.indexOf(key) === 0) return endpointMap[key];
-        }
-        return null;
-    }
-
-    return function init(req, res, next) {
-        var urlPath = endpoint.normalize(req.url.split('#')[0].split('?')[0]);
-        var match = getEndpointObject(urlPath);
-
-        // add wabs object to request and response objects
-        req.wabs = {
-            authMode: config.authenticate,
-            brownie: null,
-            content: null,
-            endpoint: false,
-            filePath: false,
-            headers: [],
-            inject: false,
-            proxy: false,
-            type: null,
-            url: req.protocol + '://' + req.get('host') + urlPath
-        };
-
-        // determine the wabs endpoint if it exists
-        if (req.url.indexOf(config.endpoint) === 0) {
-            req.wabs.endpoint = req.url.split('?')[0]
-                .substr(config.endpoint.length)
-                .replace(/^\//, '')
-                .replace(/\/$/, '');
-
-        } else if (match && match.proxy) {
-            req.wabs.proxy = match.source + '/' + path.relative(match.endpoint, urlPath);
-
-        } else if (match) {
-            req.wabs.fsStat = stats.get(urlPath);
-            if (req.wabs.fsStat && req.wabs.fsStat.stats && req.wabs.fsStat.stats.html) {
-                req.wabs.content = req.wabs.fsStat.stats.html;
-                req.wabs.inject = true;
-            }
-        }
-
-        next();
-    };
-}
 
 function unhandled(req, res, next) {
     if (req.method !== 'GET') {
