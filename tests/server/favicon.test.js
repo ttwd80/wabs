@@ -1,30 +1,36 @@
 "use strict";
 const favicon           = require('../../bin/server/favicon');
 const expect            = require('chai').expect;
-const fs                = require('fs');
+const endpoint          = require('../../bin/endpoint');
+const fsStat            = require('../../bin/fs-stat');
 const helper            = require('../../test-resources/test-helper');
+const init              = require('../../bin/server/init');
 const MockRequest       = require('mock-express-request');
 const MockResponse      = require('mock-express-response');
-const noop              = require('../../bin/server/noop');
+const mwChain           = require('../../bin/middleware-chain');
 const path              = require('path');
 
-describe.only('server/favicon', function() {
-    const faviconPath = path.resolve(__dirname, '../../test-resources/favicon.ico');
-    const statsStore = {};
+describe('server/favicon', function() {
+    const config = helper.configuration({
+        src: [ path.resolve(__dirname, '../../bin/www') ],
+        watch: true
+    });
+    const endpointMap = endpoint.map(config);
+
+    let stats;
     let middleware;
     let req;
     let res;
 
-    before(function(done) {
-        fs.stat(faviconPath, function(err, stats) {
-            if (err) return done(err);
-            statsStore[faviconPath] = stats;
-            done();
-        });
+    before(function() {
+        return fsStat(config, endpointMap)
+            .then(function(factory) {
+                stats = factory;
+            });
     });
 
     beforeEach(function() {
-        middleware = favicon(statsStore);
+        middleware = favicon(stats);
         req = new MockRequest({
             method: 'GET',
             wabs: { proxy: false },
@@ -71,30 +77,16 @@ describe.only('server/favicon', function() {
         res.sendFile = function() {
             done();
         };
-        middleware(req, res, function(err) {
+        
+        const fn = mwChain([
+            init(config, endpointMap, stats),
+            middleware
+        ]);
+
+        fn(req, res, function(err) {
             if (err) return done(err);
             done(Error('Should have sent file'));
         });
     });
-
-
-
-    /*it('uses noop middleware if proxy', function() {
-        var fn = favicon({ proxy: true }, null);
-        expect(fn).to.be.equal(noop);
-    });
-
-    it('uses express-favicon if not proxy', function(done) {
-        var path = __dirname + '/../../test-resources/favicon.ico';
-        fs.stat(path, function(err, stats) {
-            var fn;
-            var store = {};
-            if (err) return done(err);
-            store[path] = stats;
-            fn = favicon({ proxy: false, src: __dirname + '/../../test-resources/favicon.ico' }, stats);
-            expect(helper.isMiddlewareFunction(fn)).to.be.true;
-            done();
-        });
-    });*/
 
 });
