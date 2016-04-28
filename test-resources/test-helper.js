@@ -1,8 +1,11 @@
 "use strict";
+const authenticate      = require('../bin/server/authenticate');
 const bodyParser        = require('body-parser');
+const brownie           = require('../bin/server/brownie');
 const emptyPort         = require('empty-port');
 const express           = require('express');
 const Promise           = require('bluebird');
+const server            = require('../bin/server/index');
 
 exports.brownieServer = function() {
     const response = {
@@ -44,6 +47,29 @@ exports.brownieServer = function() {
 
             return app;
         });
+};
+
+/**
+ * Get a full configuration object.
+ * @param {object} config
+ * @returns {object}
+ */
+exports.configuration = function(config) {
+    const result = Object.assign({}, config);
+
+    function processOptions(opts) {
+        Object.keys(opts).forEach(function(key) {
+            const item = opts[key];
+            if (item.required && !result.hasOwnProperty(key)) throw Error('Missing required value for: ' + key);
+            if (!result.hasOwnProperty(key) && item.hasOwnProperty('defaultValue')) result[key] = item.defaultValue;
+        });
+    }
+
+    processOptions(authenticate.options);
+    processOptions(brownie.options);
+    processOptions(server.options);
+
+    return result;
 };
 
 /**
