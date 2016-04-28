@@ -9,11 +9,12 @@ const error         = require('./error');
 const endpoint      = require('./endpoint');
 const express       = require('express');
 const favicon       = require('./favicon');
+const fsStat        = require('../fs-stat');
 const loadFromEnv   = require('./env');
 const injector      = require('./injector');
 const init          = require('./init');
 const log           = require('./log');
-const fsStat        = require('../fs-stat');
+const mwChain       = require('../middleware-chain.js');
 const path          = require('path');
 const Promise       = require('bluebird');
 const proxy         = require('./proxy');
@@ -101,7 +102,8 @@ Server.middleware = function(config) {
             mid.static = staticEp(config, stats);
 
             // overwrite the initial middleware array
-            middleware = [
+            while (middleware.length > 0) middleware.pop();
+            middleware.push(
                 mid.statusView,
                 mid.log,
                 mid.compression,
@@ -115,24 +117,11 @@ Server.middleware = function(config) {
                 mid.static,
                 mid.unhandled,
                 mid.error
-            ];
+            );
         });
 
     // return a middleware function
-    return function(req, res, next) {
-        const chain = middleware.slice(0);
-
-        function handle(req, res, next) {
-            var active = chain.shift();
-            if (!active) return next();
-            active(req, res, function(err) {
-                if (err) return next(err);
-                handle(req, res, next);
-            });
-        }
-
-        handle(req, res, next);
-    };
+    return mwChain(middleware);
 };
 
 Server.options = {
