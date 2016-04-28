@@ -402,6 +402,8 @@ Set the authentication auto refresh using ```<meta name=“wabs-auth-refresh” 
 - If the number is positive `>0` then the auto refresh will occur number of minutes specified.
 - If the number is negative `<0` then the refresh will occur that many number of minutes before the OAuth access token expires.
 
+The default value is `0`.
+
 ### JavaScript
 
 Your client application will have access to two global objects:
@@ -426,7 +428,9 @@ var x = byu.auth.accessToken;
 
 ##### autoRefresh
 
-The authentication auto refresh interval.If the number is zero then authentication auto refresh will be disabled. If the number is positive then the auto refresh will occur number of minutes specified. If the number is negative then the refresh will occur that many number of minutes before the OAuth access token expires.
+The authentication auto refresh interval. If the number is zero then authentication auto refresh will be disabled. If the number is positive then the auto refresh will occur number of minutes specified. If the number is negative then the refresh will occur that many number of minutes before the OAuth access token expires.
+
+The default value is `0`.
 
 **Example**
 
