@@ -1,5 +1,7 @@
 "use strict";
 const Buffer        = require('buffer');
+const chalk         = require('chalk');
+const log           = require('./server/log');
 const path          = require('path');
 
 module.exports = function(config) {
@@ -8,6 +10,20 @@ module.exports = function(config) {
     const extensions = extensionsMap(config.cacheExtensions);
     const store = {};
     let size = 0;
+
+    function logSize() {
+        const percent = size / limit;
+        const metric = log.getMetric(value);
+        let color;
+        if (size < .4) {
+            color = 'green';
+        } else if (size < .75) {
+            color = 'yellow';
+        } else {
+            color = 'red';
+        }
+        return chalk[color](metric.value + ' ' + metric.unit + 'B')
+    }
 
     factory.add = function(filePath, content) {
         if (!factory.cacheable(filePath)) return;
@@ -18,7 +34,9 @@ module.exports = function(config) {
         if (newSize > limit) {
             console.error('Cannot cache file "' + filePath + '" because the cache is full.');
         } else {
+            size = newSize;
             store[filePath] = content;
+            console.log(chalk.blue('[+CSH]') + ' : ' + logSize() + ' : ' + filePath);
         }
     };
 
@@ -35,6 +53,7 @@ module.exports = function(config) {
         if (store.hasOwnProperty(filePath)) {
             size -= getLength(store[filePath]);
             delete store[filePath];
+            console.log(chalk.blue('[-CSH]') + ' : ' + logSize() + ' : ' + filePath);
         }
     };
 
