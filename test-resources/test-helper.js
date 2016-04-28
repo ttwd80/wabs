@@ -3,11 +3,40 @@ const authenticate      = require('../bin/server/authenticate');
 const bodyParser        = require('body-parser');
 const brownie           = require('../bin/server/brownie');
 const emptyPort         = require('empty-port');
+const endpoint          = require('../bin/endpoint');
 const express           = require('express');
+const fsStat            = require('../bin/fs-stat');
+const init              = require('../bin/server/init');
+const mwChain           = require('../bin/middleware-chain');
+const path              = require('path');
 const Promise           = require('bluebird');
 const server            = require('../bin/server/index');
 
-exports.brownieServer = function() {
+module.exports = Helper;
+
+/**
+ * Useful for test initialization.
+ * @param {object} store The object to store properties onto.
+ * @param {object} [configuration]
+ * @returns {Promise}
+ */
+function Helper(store, configuration) {
+    const defaults = {
+        src: [ path.resolve(__dirname, '../bin/www') ]
+    };
+    const config = Helper.configuration(Object.assign(defaults, configuration || {}));
+    const endpointMap = endpoint.map(config);
+
+    return fsStat(config, endpointMap)
+        .then(function(stats) {
+            store.chain = mwChain;
+            store.middleware = init(config, endpointMap, stats);
+            store.stats = stats;
+            return store;
+        });
+}
+
+Helper.brownieServer = function() {
     const response = {
         'Brownie-dumperService': {
             request: {
@@ -27,7 +56,7 @@ exports.brownieServer = function() {
         }
     };
 
-    return exports.server()
+    return Helper.server()
         .then(function(o) {
             var app = o.app;
             app.port = o.port;
@@ -54,7 +83,7 @@ exports.brownieServer = function() {
  * @param {object} config
  * @returns {object}
  */
-exports.configuration = function(config) {
+Helper.configuration = function(config) {
     const result = Object.assign({}, config);
 
     function processOptions(opts) {
@@ -78,9 +107,9 @@ exports.configuration = function(config) {
  * @param callback
  * @returns {boolean}
  */
-exports.isMiddlewareFunction = function(callback) {
-    return exports.functionHasParameters(['req', 'res', 'next'], callback) ||
-        exports.functionHasParameters(['err', 'req', 'res', 'next'], callback);
+Helper.isMiddlewareFunction = function(callback) {
+    return Helper.functionHasParameters(['req', 'res', 'next'], callback) ||
+        Helper.functionHasParameters(['err', 'req', 'res', 'next'], callback);
 };
 
 /**
@@ -89,7 +118,7 @@ exports.isMiddlewareFunction = function(callback) {
  * @param {function} callback
  * @returns {boolean}
  */
-exports.functionHasParameters = function(paramNames, callback) {
+Helper.functionHasParameters = function(paramNames, callback) {
     var params;
 
     if (typeof callback !== 'function') return false;
@@ -104,7 +133,7 @@ exports.functionHasParameters = function(paramNames, callback) {
  * Start a server on the port specified.
  * @returns {Promise} that resolves to an object { app: Server, port: number }.
  */
-exports.server = function() {
+Helper.server = function() {
     return new Promise(function(resolve, reject) {
         var app = express();
         emptyPort({}, function(err, port) {

@@ -1,36 +1,22 @@
 "use strict";
 const favicon           = require('../../bin/server/favicon');
 const expect            = require('chai').expect;
-const endpoint          = require('../../bin/endpoint');
-const fsStat            = require('../../bin/fs-stat');
 const helper            = require('../../test-resources/test-helper');
-const init              = require('../../bin/server/init');
 const MockRequest       = require('mock-express-request');
 const MockResponse      = require('mock-express-response');
-const mwChain           = require('../../bin/middleware-chain');
 const path              = require('path');
 
 describe('server/favicon', function() {
-    const config = helper.configuration({
-        src: [ path.resolve(__dirname, '../../bin/www') ],
-        watch: true
-    });
-    const endpointMap = endpoint.map(config);
+    const init = {};
 
-    let stats;
     let middleware;
     let req;
     let res;
 
-    before(function() {
-        return fsStat(config, endpointMap)
-            .then(function(factory) {
-                stats = factory;
-            });
-    });
+    before(() => helper(init));
 
     beforeEach(function() {
-        middleware = favicon(stats);
+        middleware = favicon(init.stats);
         req = new MockRequest({
             method: 'GET',
             wabs: { proxy: false },
@@ -78,8 +64,8 @@ describe('server/favicon', function() {
             done();
         };
         
-        const fn = mwChain([
-            init(config, endpointMap, stats),
+        const fn = init.chain([
+            init.middleware,
             middleware
         ]);
 
