@@ -33,8 +33,7 @@ module.exports = function(config) {
 
     factory.remove = function(filePath) {
         if (store.hasOwnProperty(filePath)) {
-            const length = getLength(store[filePath]);
-            size -= length;
+            size -= getLength(store[filePath]);
             delete store[filePath];
         }
     };
