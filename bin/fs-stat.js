@@ -29,7 +29,7 @@ module.exports = function(config, endpointMap) {
         if (!data.proxy) {
             promise = data.watch ?
                 dynamicMap(config, data.source, data.endpoint, store) :
-                staticMap(onfig, data.source, data.endpoint, store);
+                staticMap(config, data.source, data.endpoint, store);
             promises.push(promise);
         }
     });
