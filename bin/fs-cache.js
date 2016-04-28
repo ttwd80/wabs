@@ -10,8 +10,7 @@ module.exports = function(config) {
     let size = 0;
 
     factory.add = function(filePath, content) {
-        const ext = path.extname(filePath);
-        if (!extensions.hasOwnProperty(ext)) return;
+        if (!factory.cacheable(filePath)) return;
 
         const length = getLength(content);
         const newSize = size + length;
@@ -21,6 +20,11 @@ module.exports = function(config) {
         } else {
             store[filePath] = content;
         }
+    };
+
+    factory.cacheable = function(filePath) {
+        const ext = path.extname(filePath);
+        return extensions.hasOwnProperty(ext);
     };
 
     factory.get = function(filePath) {
