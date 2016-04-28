@@ -4,27 +4,31 @@ const injector          = require('../../bin/server/injector');
 
 describe('server/injector', function() {
 
-    describe('#addInjectedSpaces', function() {
+    describe('#process', function() {
 
         it('no head or body', function() {
-            var html = '<!doctype html><html></html>';
-            expect(injector.addInjectSpaces(html)).to.be.equal(html);
+            const html = '<!doctype html><html></html>';
+            const result = injector.process(html);
+            expect(result.changed).to.be.equal(false);
         });
 
         it('head only', function() {
-            var html = '<html><head></head></html>';
-            expect(injector.addInjectSpaces(html)).to.be.equal('<html><head><!-- wabs-auth --><!-- wabs-brownie --></head></html>');
+            const html = '<html><head></head></html>';
+            const result = injector.process(html);
+            expect(result.html).to.be.equal('<html><head><!-- wabs-data --><!-- wabs-brownie-data --></head></html>');
         });
 
         it('body only', function() {
-            var html = '<html><body></body></html>';
-            expect(injector.addInjectSpaces(html)).to.be.equal('<html><body><!-- wabs-script --></body></html>');
+            const html = '<html><body></body></html>';
+            const result = injector.process(html);
+            expect(result.html).to.be.equal('<html><body><!-- wabs-script --></body></html>');
         });
 
         it('head and body', function() {
-            var html = '<html><head></head><body></body></html>';
-            var expected = '<html><head><!-- wabs-auth --><!-- wabs-brownie --></head><body><!-- wabs-script --></body></html>';
-            expect(injector.addInjectSpaces(html)).to.be.equal(expected);
+            const html = '<html><head></head><body></body></html>';
+            const result = injector.process(html);
+            var expected = '<html><head><!-- wabs-data --><!-- wabs-brownie-data --></head><body><!-- wabs-script --></body></html>';
+            expect(result.html).to.be.equal(expected);
         });
 
     });
