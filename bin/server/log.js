@@ -73,6 +73,9 @@ module.exports = function() {
     };
 };
 
+module.exports.getMetric = getMetric;
+
+
 function getMetric(value) {
     var index = 0;
     var units;
