@@ -6,8 +6,8 @@ module.exports = Request;
 function Request(options) {
     return new Promise(function(resolve, reject) {
         const mockResult = Request.mock.execute(options);
-        if (mockResult) {
-            resolve(mockResult);
+        if (mockResult.found) {
+            resolve(mockResult.value);
         } else {
             request(options, function(err, response, body) {
                 if (err) return reject(err);
@@ -26,9 +26,15 @@ Request.mock = (function() {
             let item = store[i];
             if (item.filter(options)) {
                 if (item.once) store.splice(i, 1);
-                return item.response(options);
+                return {
+                    found: true,
+                    value: item.response(options)
+                };
             }
         }
+        return {
+            found: false
+        };
     };
 
     factory.off = function(filter) {
