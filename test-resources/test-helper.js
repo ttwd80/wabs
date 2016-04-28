@@ -30,6 +30,7 @@ function Helper(store, configuration) {
     return fsStat(config, endpointMap)
         .then(function(stats) {
             store.chain = mwChain;
+            store.config = config;
             store.middleware = init(config, endpointMap, stats);
             store.stats = stats;
             return store;
