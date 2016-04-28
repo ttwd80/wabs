@@ -169,29 +169,3 @@ function encode(crypt, req, res, next) {
             });
     });
 }
-
-function redirectAsGet(req, res, next) {
-    cFrameworkFormParser(req, res, function(err) {
-        var brownie;
-        var sessionKey;
-
-        // if there was an error then pass it along
-        if (err) return next(err);
-
-        // get the brownie and session key
-        brownie = req.body.hasOwnProperty('brownie') ? req.body.brownie : null;
-        sessionKey = req.cookies.hasOwnProperty('brownie') ? req.cookies.brownie : null;
-
-        if (brownie && sessionKey) {
-            var query = Object.assign({}, req.query, { 'wabs-brownie': brownie });
-            var url = req.url.split('?')[0];
-
-            Object.keys(query).forEach(function(key, index) {
-                var value = query[key];
-                url += (index === 0 ? '?' : '&') + key + (('' + value) ? '=' + encodeURIComponent(value) : '');
-            });
-
-            res.redirect(url);
-        }
-    });
-}
