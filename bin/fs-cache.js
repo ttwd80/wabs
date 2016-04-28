@@ -7,7 +7,7 @@ const path          = require('path');
 module.exports = function(config) {
     const factory = {};
     const limit = config.cacheSize * 1000000;
-    const extensions = extensionsMap(config.cacheExtensions);
+    const extensions = extensionsMap(config.cacheExt.toLowerCase().split(','));
     const store = {};
     let size = 0;
 

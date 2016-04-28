@@ -139,7 +139,6 @@ Server.options = {
         alias: 'x',
         description: 'A list of comma separated file extensions to include in cache.',
         type: String,
-        transform: v => v.toLowerCase().split(','),
         defaultValue: 'html,js,css',
         envVar: 'WABS_CACHE_EXT',
         group: 'cache',
