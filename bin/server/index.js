@@ -125,6 +125,25 @@ Server.middleware = function(config) {
 };
 
 Server.options = {
+    cache: {
+        alias: 'c',
+        description: 'The cache size in megabytes (0 to 100). Setting this value to zero will disable caching. Proxied ' +
+        'requests will not be cached.',
+        type: Number,
+        validate: v => v >= 0 && v <= 100,
+        defaultValue: 50,
+        envVar: 'WABS_CACHE',
+        group: 'cache'
+    },
+    cacheExt: {
+        alias: 'x',
+        description: 'A list of comma separated file extensions to include in cache.',
+        type: String,
+        transform: v => v.toLowerCase().split(','),
+        defaultValue: 'html,js,css',
+        envVar: 'WABS_CACHE_EXT',
+        group: 'cache',
+    },
     development: {
         alias: 'd',
         description: 'Set the server into development mode, removing optimizations while improving the ability to debug.',
@@ -189,7 +208,7 @@ Server.options = {
         type: Boolean,
         defaultValue: true,
         envVar: 'WABS_WATCH',
-        group: 'server'
+        group: 'cache'
     },
     watchPolling: {
         alias: 'W',
@@ -199,7 +218,7 @@ Server.options = {
         type: Number,
         validate: function(v) { return v > 0; },
         envVar: 'WABS_WATCH_POLLING',
-        group: 'server'
+        group: 'cache'
     }
 };
 
@@ -231,7 +250,8 @@ Command.define('server', Server, {
                 'For details on these tools see the section titled ' + chalk.bold.cyan('Client Application Brownie Tools') + '.\n\n' +
                 chalk.bold('If set to "none"') + ' then all other brownie options are ignored and the client ' +
                 'application will not have access to the ' + chalk.bold.cyan('Client Application Brownie Tools') + '.'
-        }
+        },
+        cache: 'Cache Options'
     },
     options: Object.assign({}, Server.options, authenticate.options, brownie.options),
     sections: [
