@@ -1,4 +1,4 @@
-const endpoint      = require('./endpoint');
+const endpoint      = require('./../endpoint');
 
 /**
  * Get middleware that will augment the request object.

@@ -1,5 +1,5 @@
 "use strict";
-const endpoint      = require('../../bin/server/endpoint');
+const endpoint      = require('../../bin/endpoint');
 const expect        = require('chai').expect;
 
 describe('endpoint', function() {
