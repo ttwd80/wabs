@@ -3,12 +3,13 @@ const endpoint      = require('./../endpoint');
 /**
  * Get middleware that will augment the request object.
  * @param {object} config The application configuration object.
- * @param {object} endpointMap The endpoint map object.
+ * @param {object} endpointMap The endpoint map object. Set to falsy to get a new endpoint map.
  * @param {object} stats The file stats object.
  * @returns {Function}
  */
 module.exports = function(config, endpointMap, stats) {
-    var endpointKeys = Object.keys(endpointMap);
+    if (!endpointMap) endpointMap = endpoint.map(config);
+    const endpointKeys = Object.keys(endpointMap);
 
     // sort endpoint keys by path length, longest first
     endpointKeys.sort(function(a, b) {
