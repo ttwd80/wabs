@@ -42,7 +42,7 @@ module.exports = function(config) {
 
     factory.cacheable = function(filePath) {
         const ext = path.extname(filePath);
-        return extensions.hasOwnProperty(ext);
+        return limit !== 0 && extensions.hasOwnProperty(ext);
     };
 
     factory.get = function(filePath) {
