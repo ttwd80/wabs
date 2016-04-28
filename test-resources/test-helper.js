@@ -34,8 +34,8 @@ function Helper(store, configuration) {
             store.chain = mwChain;
             store.config = config;
             store.middleware = init(config, endpointMap, stats);
-            store.req = config => new MockRequest(config);
-            store.res = config => new MockResponse(config);
+            store.req = config => new MockRequest(config || {});
+            store.res = config => new MockResponse(config || {});
             store.stats = stats;
             return store;
         });
