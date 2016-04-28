@@ -7,6 +7,8 @@ const endpoint          = require('../bin/endpoint');
 const express           = require('express');
 const fsStat            = require('../bin/fs-stat');
 const init              = require('../bin/server/init');
+const MockRequest       = require('mock-express-request');
+const MockResponse      = require('mock-express-response');
 const mwChain           = require('../bin/middleware-chain');
 const path              = require('path');
 const Promise           = require('bluebird');
@@ -32,6 +34,8 @@ function Helper(store, configuration) {
             store.chain = mwChain;
             store.config = config;
             store.middleware = init(config, endpointMap, stats);
+            store.req = config => new MockRequest(config);
+            store.res = config => new MockResponse(config);
             store.stats = stats;
             return store;
         });
