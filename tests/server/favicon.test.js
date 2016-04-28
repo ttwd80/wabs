@@ -2,8 +2,6 @@
 const favicon           = require('../../bin/server/favicon');
 const expect            = require('chai').expect;
 const helper            = require('../../test-resources/test-helper');
-const MockRequest       = require('mock-express-request');
-const MockResponse      = require('mock-express-response');
 const path              = require('path');
 
 describe('server/favicon', function() {
@@ -17,12 +15,12 @@ describe('server/favicon', function() {
 
     beforeEach(function() {
         middleware = favicon(init.stats);
-        req = new MockRequest({
+        req = init.req({
             method: 'GET',
             wabs: { proxy: false },
             url: '/favicon.ico'
         });
-        res = new MockResponse({ req: req });
+        res = init.res();
     });
 
     it('is middleware', function() {
