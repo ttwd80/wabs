@@ -6,18 +6,18 @@ const path          = require('path');
 
 module.exports = function(config) {
     const factory = {};
-    const limit = config.cacheSize * 1000000;
+    const limit = config.cache * 1000000;
     const extensions = extensionsMap(config.cacheExt.toLowerCase().split(','));
     const store = {};
     let size = 0;
 
     function logSize() {
         const percent = size / limit;
-        const metric = log.getMetric(value);
+        const metric = log.getMetric(size);
         let color;
-        if (size < .4) {
+        if (percent < .4) {
             color = 'green';
-        } else if (size < .75) {
+        } else if (percent < .75) {
             color = 'yellow';
         } else {
             color = 'red';
@@ -41,7 +41,7 @@ module.exports = function(config) {
     };
 
     factory.cacheable = function(filePath) {
-        const ext = path.extname(filePath);
+        const ext = path.extname(filePath).toLowerCase().substr(1);
         return limit !== 0 && extensions.hasOwnProperty(ext);
     };
 
@@ -61,7 +61,7 @@ module.exports = function(config) {
 };
 
 function getLength(content) {
-    return typeof content === 'string' ? Buffer.byteLength(content) : content.length;
+    return typeof content === 'string' ? Buffer.Buffer.byteLength(content) : content.length;
 }
 
 function extensionsMap(arr) {
