@@ -4,8 +4,10 @@ const chokidar          = require('chokidar');
 const CustomError       = require('custom-error-instance');
 const endpoint          = require('./endpoint');
 const fs                = require('fs');
+const fsCache           = require('./fs-cache');
 const fsMap             = require('fs-map');
 const injector          = require('./server/injector');
+const mime              = require('mime-types');
 const path              = require('path');
 const Promise           = require('bluebird');
 
@@ -19,8 +21,9 @@ const readFile = Promise.promisify(fs.readFile);
  * @returns {Promise}
  */
 module.exports = function(config, endpointMap) {
-    var store = statStore();
-    var promises = [];
+    const cache = fsCache(config);
+    const store = statStore();
+    const promises = [];
 
     // build file system maps for all sources
     Object.keys(endpointMap).forEach(function(endpoint) {
@@ -28,8 +31,8 @@ module.exports = function(config, endpointMap) {
         var promise;
         if (!data.proxy) {
             promise = data.watch ?
-                dynamicMap(config, data.source, data.endpoint, store) :
-                staticMap(config, data.source, data.endpoint, store);
+                dynamicMap(config, cache, data.source, data.endpoint, store) :
+                staticMap(config, cache, data.source, data.endpoint, store);
             promises.push(promise);
         }
     });
@@ -55,8 +58,6 @@ module.exports = function(config, endpointMap) {
              * @returns {string, undefined}
              */
             factory.getIndexFilePath = function(directoryPath) {
-
-
                 return Object.keys(store)
                     .filter(function(filePath) {
                         var basename = path.basename(filePath);
@@ -70,7 +71,7 @@ module.exports = function(config, endpointMap) {
              * @returns {object}
              */
             factory.get = function(filePath) {
-                return store.get(filePath);
+                return store.get(cache, filePath);
             };
 
             /**
@@ -114,12 +115,13 @@ Object.defineProperty(module.exports, 'error', {
 /**
  * Bind a dynamic file system map to the store.
  * @param {object} config
+ * @param {object} cache
  * @param {string} src
  * @param {string} endpoint
  * @param {object} store
  * @returns {Promise}
  */
-function dynamicMap(config, src, endpoint, store) {
+function dynamicMap(config, cache, src, endpoint, store) {
     return new Promise(function (resolve, reject) {
         var watchReady = false;
         var promises = [];
@@ -133,11 +135,11 @@ function dynamicMap(config, src, endpoint, store) {
 
         chokidar.watch(src, chokConfig)
             .on('add', function(filePath, stats) {
-                var promise = store.add(src, filePath, endpoint, stats);
+                var promise = store.add(cache, src, filePath, endpoint, stats);
                 if (!watchReady) promises.push(promise);
             })
-            .on('change', (filePath, stats) => store.update(src, filePath, endpoint, stats))
-            .on('unlink', filePath => store.remove(src, filePath, endpoint))
+            .on('change', (filePath, stats) => store.update(cache, src, filePath, endpoint, stats))
+            .on('unlink', filePath => store.remove(cache, src, filePath, endpoint))
             .on('ready', function() {
                 watchReady = true;
                 Promise.all(promises).then(resolve, reject);
@@ -151,17 +153,18 @@ function dynamicMap(config, src, endpoint, store) {
 /**
  * Build a file system map into the store.
  * @param {object} config
+ * @param {object} cache
  * @param {string} src
  * @param {string} endpoint
  * @param {object} store
  * @returns {Promise}
  */
-function staticMap(config, src, endpoint, store) {
+function staticMap(config, cache, src, endpoint, store) {
     return fsMap(src)
         .then(function(data) {
             var promises = [];
             Object.keys(data).forEach(function(filePath) {
-                store.update(src, filePath, endpoint, data[filePath]);
+                store.add(cache, src, filePath, endpoint, data[filePath]);
             });
             return Promise.all(promises);
         });
@@ -232,36 +235,41 @@ function statStore() {
         }
     }
 
-    function updateStore(added, root, filePath, endpoint, stats) {
-        var key = getFileKey(endpoint, root, filePath);
+    function updateStore(added, cache, root, filePath, endpoint, stats) {
+        const cacheable = cache.cacheable(filePath);
+        const isHtml = rxHtml.test(filePath);
+        const key = getFileKey(endpoint, root, filePath);
 
         // if it is not a file then return
         if (!stats.isFile()) return Promise.resolve();
 
         // store the stats object
         store.files[filePath] = stats;
-
-        // if the path is not an html file then just cache the stats as is
-        if (!rxHtml.test(filePath)) {
+        
+        // if not cacheable and not html then store the endpoint and return
+        if (!cacheable && !isHtml) {
             setEndpoint(key, filePath);
             return Promise.resolve();
         }
 
-        // read the content of the html file
-        return readFile(filePath, 'utf8')
+        // read the content of the file
+        return readFile(filePath)
             .then(function (content) {
-                var data;
-                var html;
+
+                // determine if the content should be a string
+                const charset = mime.charset(mime.lookup(filePath));
+                if (charset === 'UTF-8') content = content.toString();
 
                 // process the html
-                data = injector.process(content);
-                html = data.html;
-
-                // store authentication mode data
-                stats.authMode = data.authMode;
-
-                // if the html was modified then add html to the stats object
-                if (data.changed) stats.html = html;
+                if (isHtml) {
+                    const data = injector.process(content);
+                    content = data.html;
+                    stats.authMode = data.authMode;
+                    stats.inject = data.changed;
+                }
+                
+                // cache the content
+                if (cache.cacheable(filePath)) cache.add(filePath, content);
 
                 // set the endpoints
                 if (added) {
@@ -281,37 +289,52 @@ function statStore() {
 
         /**
          * Add a path to the store.
+         * @param {object} cache
          * @param {string} root
          * @param {string} filePath
          * @param {string} endpoint
          * @param {object} stats
          * @returns {Promise}
          */
-        add: function(root, filePath, endpoint, stats) {
-            return updateStore(true, root, filePath, endpoint, stats);
+        add: function(cache, root, filePath, endpoint, stats) {
+            return updateStore(true, cache, root, filePath, endpoint, stats);
         },
 
         /**
          * Get the file path and stats object for an endpoint path.
+         * @param {object} cache
          * @param {string} endpoint
-         * @returns {{path: string, stats: object}}
+         * @returns {{content: string|buffer, path: string, stats: object, type: string}}
          */
-        get: function(endpoint) {
-            var ar = store.endpoints[endpoint];
-            return ar ? { path: ar[0], stats: store.files[ar[0]] } : void 0;
+        get: function(cache, endpoint) {
+            const ar = store.endpoints[endpoint];
+            const filePath = ar[0];
+            const stats = filePath ? store.files[filePath] : null;
+            return filePath ?
+                {
+                    authMode: stats.authMode,
+                    content: cache.get(filePath),
+                    inject: stats.inject,
+                    path: filePath,
+                    stats: stats,
+                    type: mime.lookup(filePath)
+                } :
+                void 0;
         },
 
         //data: store,
 
         /**
          * Remove a path from the store.
+         * @param {object} cache
          * @param {string} root
          * @param {string} filePath
          * @param {string} endpoint
          */
-        remove: function(root, filePath, endpoint) {
+        remove: function(cache, root, filePath, endpoint) {
             var key = getFileKey(endpoint, root, filePath);
             if (store.files.hasOwnProperty(filePath)) {
+                cache.remove(filePath);
                 delete store.files[filePath];
                 removeEndpoint(key, filePath);
                 if (rxIndexHtml.test(path.basename(filePath))) removeEndpoint(key, filePath);
@@ -320,14 +343,15 @@ function statStore() {
 
         /**
          * Update a path in the store.
+         * @param {object} cache
          * @param {string} root
          * @param {string} filePath
          * @param {string} endpoint
          * @param {object} stats
          * @returns {Promise}
          */
-        update: function(root, filePath, endpoint, stats) {
-            return updateStore(false, root, filePath, endpoint, stats);
+        update: function(cache, root, filePath, endpoint, stats) {
+            return updateStore(false, cache, root, filePath, endpoint, stats);
         }
     }
 }
