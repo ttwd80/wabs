@@ -16,7 +16,7 @@ const authStage = {
     authorized: 'Authorized'
 };
 
-function Authenticate(config, stats) {
+function Authenticate(config) {
     loadFromEnv(config, Authenticate.options);
     console.log('Authenticate mode: ' + config.authenticate);
 
