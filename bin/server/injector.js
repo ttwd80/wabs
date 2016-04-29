@@ -1,5 +1,6 @@
 "use strict";
 const cheerio           = require('cheerio');
+const fs            = require('fs');
 const path              = require('path');
 const services          = require('./services');
 const uglify            = require('uglify-js');
@@ -50,6 +51,18 @@ function injector(config) {
             res.send(html);
         };
 
+        // add sendInjectedFie function to the response object
+        res.sendInjectedFile = function(filePath) {
+            fs.readFile(filePath, 'utf8', function(err, content) {
+                if (err) {
+                    res.sendStatusView(404);
+                } else {
+                    const data = injectorProcessor(content);
+                    res.sendInjected(data.html);
+                }
+            });
+        };
+
         // handle requests for special JavaScript files
         match = rx.exec(req.url);
         if (match) {
@@ -66,30 +79,7 @@ function injector(config) {
  * @param content
  * @returns {{authMode: *, html: *}}
  */
-injector.process = function(content) {
-    const $ctrl = cheerio.load(content);
-    var authMode = null;
-    var changed = false;
-
-    // if the html has a head tag then add placeholders and look for metadata
-    if ($ctrl('head').length > 0) {
-        $ctrl('head').append('<!-- wabs-data --><!-- wabs-brownie-data -->');
-        authMode = $ctrl('head meta[name="wabs-authenticate-mode"]').attr('content');
-        changed = true;
-    }
-
-    // if the html has a body tag then add the script placeholder to the end of the body
-    if ($ctrl('body').length > 0) {
-        $ctrl('body').append('<!-- wabs-script -->');
-        changed = true;
-    }
-
-    return {
-        authMode: authMode,
-        changed: changed,
-        html: changed ? $ctrl.html() : content
-    };
-};
+injector.process = injectorProcessor;
 
 /**
  * Determine the script tag to return based on configuration.
@@ -113,11 +103,35 @@ function getScriptReplacementString(config) {
         '';
 }
 
-var fs = require('fs');
 function getScriptContent(filePath, development) {
     var absFilePath = path.resolve(__dirname, '../www/', filePath);
     return development ? fs.readFileSync(absFilePath, 'utf8') : uglify.minify(absFilePath).code;
 }
+
+function injectorProcessor(content) {
+    const $ctrl = cheerio.load(content);
+    var authMode = null;
+    var changed = false;
+
+    // if the html has a head tag then add placeholders and look for metadata
+    if ($ctrl('head').length > 0) {
+        $ctrl('head').append('<!-- wabs-data --><!-- wabs-brownie-data -->');
+        authMode = $ctrl('head meta[name="wabs-authenticate-mode"]').attr('content');
+        changed = true;
+    }
+
+    // if the html has a body tag then add the script placeholder to the end of the body
+    if ($ctrl('body').length > 0) {
+        $ctrl('body').append('<!-- wabs-script -->');
+        changed = true;
+    }
+
+    return {
+        authMode: authMode,
+        changed: changed,
+        html: changed ? $ctrl.html() : content
+    };
+};
 
 /**
  * Replace the associated placeholder with metadata and return the new string.
