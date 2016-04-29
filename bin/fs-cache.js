@@ -1,5 +1,4 @@
 "use strict";
-const Buffer        = require('buffer');
 const chalk         = require('chalk');
 const fs            = require('fs');
 const injector      = require('./server/injector');
