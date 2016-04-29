@@ -1,7 +1,7 @@
 "use strict";
 const crypt         = require('../brownie/crypt');
 const brownie       = require('./brownie');
-const injector       = require('./injector');
+const injector      = require('./injector');
 const path          = require('path');
 const request       = require('request');
 
@@ -24,7 +24,11 @@ module.exports = function(config, stats) {
 
             // send the content
             if (req.wabs.inject) {
-                res.sendInjected(req.wabs.content);
+                if (req.wabs.content) {
+                    res.sendInjected(req.wabs.content);
+                } else {
+                    res.sendInjectedFile(req.wabs.fsStat.path);
+                }
             } else if (req.wabs.content) {
                 res.send(req.wabs.content);
             } else {
