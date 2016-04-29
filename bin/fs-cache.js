@@ -155,10 +155,6 @@ function getFilePathData(filePath, maxFileSize) {
         });
 }
 
-function getMetricValue() {
-    log.getMetric(size)
-}
-
 function findIndexFileInDirectory(dirPath) {
     return readDir(dirPath)
         .then(function(filePaths) {
