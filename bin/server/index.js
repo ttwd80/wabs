@@ -21,6 +21,7 @@ const request       = require('request');
 const schemata      = require('object-schemata');
 const staticEp      = require('./static');
 const statusView    = require('./view');
+const watcher       = require('../watcher');
 
 module.exports = Server;
 
@@ -61,6 +62,9 @@ Server.middleware = function(config) {
     
     // get the cache object
     const cache = fsCache(config);
+
+    // start the watcher to invalidate cache
+    watcher(config, cache);
 
     // define the middleware
     const middleware = [
