@@ -1,14 +1,15 @@
+"use strict";
 const endpoint      = require('./../endpoint');
+const path          = require('path');
 
 /**
  * Get middleware that will augment the request object.
  * @param {object} config The application configuration object.
- * @param {object} endpointMap The endpoint map object. Set to falsy to get a new endpoint map.
- * @param {object} stats The file stats object.
+ * @param {object} cache The file cache factory.
  * @returns {Function}
  */
-module.exports = function(config, endpointMap, stats) {
-    if (!endpointMap) endpointMap = endpoint.map(config);
+module.exports = function(config, cache) {
+    const endpointMap = endpoint.map(config);
     const endpointKeys = Object.keys(endpointMap);
 
     // sort endpoint keys by path length, longest first
@@ -29,8 +30,8 @@ module.exports = function(config, endpointMap, stats) {
     }
 
     return function init(req, res, next) {
-        var urlPath = endpoint.normalize(req.url.split('#')[0].split('?')[0]);
-        var match = getEndpointObject(urlPath);
+        const urlPath = endpoint.normalize(req.url.split('#')[0].split('?')[0]);
+        const match = getEndpointObject(urlPath);
 
         // add wabs object to request and response objects
         req.wabs = {
@@ -46,24 +47,24 @@ module.exports = function(config, endpointMap, stats) {
             url: req.protocol + '://' + req.get('host') + urlPath
         };
 
-        // determine the wabs endpoint if it exists
+        // determine the wabs endpoint if it exists (for wabs specific web services)
         if (req.url.indexOf(config.endpoint) === 0) {
             req.wabs.endpoint = req.url.split('?')[0]
                 .substr(config.endpoint.length)
                 .replace(/^\//, '')
                 .replace(/\/$/, '');
+            next();
 
         } else if (match && match.proxy) {
             req.wabs.proxy = match.source + '/' + path.relative(match.endpoint, urlPath);
+            next();
 
         } else if (match) {
-            req.wabs.fsStat = stats.get(urlPath);
-            if (req.wabs.fsStat) {
-                if (req.wabs.fsStat.content) req.wabs.content = req.wabs.fsStat.content;
-                if (req.wabs.fsStat.inject) req.wabs.inject = true;
-            }
+            cache.get(match.source + urlPath)
+                .then(function(data) {
+                    req.wabs.fsStat = data;
+                    next();
+                }, next);
         }
-
-        next();
     };
 };

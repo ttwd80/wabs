@@ -8,8 +8,7 @@ const cookieParser  = require('cookie-parser');
 const error         = require('./error');
 const endpoint      = require('./../endpoint');
 const express       = require('express');
-const favicon       = require('./favicon');
-const fsStat        = require('../fs-stat');
+const fsCache        = require('../fs-cache');
 const loadFromEnv   = require('./env');
 const injector      = require('./injector');
 const init          = require('./init');
@@ -59,66 +58,28 @@ Server.middleware = function(config) {
     const options = Object.assign({}, Server.options, authenticate.options, brownie.options);
     delete options.port;
     config = schemata(options).normalize(config);
+    
+    // get the cache object
+    const cache = fsCache(config);
 
     // define the middleware
-    const mid = {
-        authenticate:   null,
-        brownie:        brownie(config),
-        compression:    compression({}),
-        cookieParser:   cookieParser(),
-        error:          error,
-        favicon:        null,
-        init:           null,
-        injector:       injector(config),
-        log:            log(),
-        proxy:          proxy(),
-        static:         null,
-        statusView:     statusView(config),
-        unhandled:      unhandled
-    };
-
-    // map endpoints
-    const endpointMap = endpoint.map(config);
-
-    // define the initial middleware array
-    var middleware = [ function(req, res, next) {
-        mid.statusView(req, res, function(err) {
-            if (err) return next(err);
-            res.sendStatusView(503, 'Initializing Web Application Bootstrap Server Middleware');
-        });
-    }];
+    const middleware = [
+        statusView(config),
+        log(),
+        compression({}),
+        init(config, cache),
+        cookieParser(),
+        brownie(config),
+        proxy(),
+        authenticate(config),
+        injector(config),
+        staticEp(config, cache),
+        unhandled,
+        error
+    ];
 
     // normalize the endpoint
     config.endpoint = endpoint.normalize(config.endpoint);
-
-    // start file system mapping
-    fsStat(config, endpointMap)
-        .then(function(stats) {
-
-            // fill in the middleware
-            mid.authenticate = authenticate(config, stats);
-            mid.favicon = favicon(stats);
-            mid.init = init(config, endpointMap, stats);
-            mid.static = staticEp(config, stats);
-
-            // overwrite the initial middleware array
-            while (middleware.length > 0) middleware.pop();
-            middleware.push(
-                mid.statusView,
-                mid.log,
-                mid.compression,
-                mid.init,
-                mid.favicon,
-                mid.cookieParser,
-                mid.brownie,
-                mid.proxy,
-                mid.authenticate,
-                mid.injector,
-                mid.static,
-                mid.unhandled,
-                mid.error
-            );
-        });
 
     // return a middleware function
     return mwChain(middleware);
@@ -139,9 +100,18 @@ Server.options = {
         alias: 'x',
         description: 'A list of comma separated file extensions to include in cache.',
         type: String,
-        defaultValue: 'html,js,css',
+        defaultValue: 'html,htm,js,css',
         envVar: 'WABS_CACHE_EXT',
-        group: 'cache',
+        group: 'cache'
+    },
+    cacheMax: {
+        alias: 'm',
+        description: 'The maximum file size in megabytes to allow into the cache.',
+        type: Number,
+        validate: v => v >= 0,
+        defaultValue: 1,
+        envVar: 'WABS_CACHE_MAX',
+        group: 'cache'
     },
     development: {
         alias: 'd',

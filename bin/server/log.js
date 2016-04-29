@@ -75,6 +75,11 @@ module.exports = function() {
 
 module.exports.getMetric = getMetric;
 
+module.exports.getMetricString = function(value) {
+    const metric = getMetric(value);
+    return metric.value + ' ' + metric.unit + 'B'
+};
+
 
 function getMetric(value) {
     var index = 0;

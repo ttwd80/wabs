@@ -14,25 +14,27 @@ module.exports = function(config, stats) {
         // local file
         if (req.wabs.fsStat) {
 
-            // if the content is in memory then add standard headers
-            if (req.wabs.content) {
-                res.set('Accept-Range', 'bytes');
-                res.set('Cache-Control', 'public, max-age=0');
-                res.set('Content-Type', 'text/html');
-                res.set('Last-Modified', req.wabs.fsStat.stats.mtime);
-            }
+            // add standard headers
+            res.set('Accept-Range', 'bytes');
+            res.set('Cache-Control', 'public, max-age=0');
+            if (req.wabs.fsStat.type) res.set('Content-Type', req.wabs.fsStat.type);
+            res.set('Last-Modified', req.wabs.fsStat.mtime);
 
-            // send the content
-            if (req.wabs.inject) {
-                if (req.wabs.content) {
-                    res.sendInjected(req.wabs.content);
+            // if the file was not too large then send it's content
+            if (req.wabs.fsStat.content) {
+                if (req.wabs.fsStat.inject) {
+                    res.sendInjected(req.wabs.fsStat.content);
                 } else {
-                    res.sendInjectedFile(req.wabs.fsStat.path);
+                    res.send(req.wabs.fsStat.content);
                 }
-            } else if (req.wabs.content) {
-                res.send(req.wabs.content);
+
+            // if the file is too large then stream the result
             } else {
-                res.sendFile(req.wabs.fsStat.path);
+                if (req.wabs.fsStat.inject) {
+                    res.sendInjectedFile(req.wabs.fsStat.filePath);
+                } else {
+                    res.sendFile(req.wabs.fsStat.filePath);
+                }
             }
 
 
