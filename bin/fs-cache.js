@@ -30,13 +30,9 @@ function fsCache(config) {
             .sort((fp1, fp2) => store[fp1].time < store[fp2].time);
         let removed = 0;
         while (size / limit > .85 || removed < quantity) {
-            let filePath = filePaths.shift();
             let length = store[filePath].length;
-            size -= length;
             removed += length;
-            delete store[filePath];
-            if (rxIsIndex.test(path.basename(filePath))) delete store[path.dirname(filePath) + path.sep];
-            console.log(chalk.magenta('[-CACHE]') + ' : ' + log.getMetricString(length) + ' : ' + logSize() + ' : ' + filePath);
+            factory.remove(filePaths.shift());
         }
     }
 
@@ -116,7 +112,11 @@ function fsCache(config) {
     };
 
     factory.remove = function(filePath) {
+        let length = store[filePath].length;
+        size -= length;
         delete store[filePath];
+        if (rxIsIndex.test(path.basename(filePath))) delete store[path.dirname(filePath) + path.sep];
+        console.log(chalk.magenta('[-CACHE]') + ' : ' + log.getMetricString(length) + ' : ' + logSize() + ' : ' + filePath);
     };
 
     return factory;
