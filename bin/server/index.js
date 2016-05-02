@@ -54,8 +54,9 @@ function Server(config) {
 }
 
 Server.middleware = function(config) {
-    const configKeys = Object.keys(config);
 
+    // log the configuration settings
+    const configKeys = Object.keys(config);
     const longestKey = configKeys
         .reduce((longest, key) => key.length > longest ? key.length : longest, 0);
     const logStr = configKeys
