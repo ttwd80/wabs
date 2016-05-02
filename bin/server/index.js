@@ -54,6 +54,28 @@ function Server(config) {
 }
 
 Server.middleware = function(config) {
+    const configKeys = Object.keys(config);
+
+    const longestKey = configKeys
+        .reduce((longest, key) => key.length > longest ? key.length : longest, 0);
+    const logStr = configKeys
+        .reduce(function(result, key) {
+            let str = '  ' + key + ':   ' + getSpaces(longestKey - key.length);
+            switch(key) {
+                case 'consumerKey':
+                case 'consumerSecret':
+                case 'encryptSecret':
+                    str += '**********';
+                    break;
+                default:
+                    let value = config[key];
+                    if (Array.isArray(value)) value = value.join('\n      ' + getSpaces(longestKey));
+                    str += value;
+                    break;
+            }
+            return result + '\n' + str;
+        }, '');
+    console.log('WABS Configuration: ' + logStr);
 
     // normalize the configuration
     const options = Object.assign({}, Server.options, authenticate.options, brownie.options);
@@ -307,6 +329,12 @@ Command.define('server', Server, {
         }
     ]
 });
+
+function getSpaces(count) {
+    let str = '';
+    for (let i = 0; i < count; i++) str += ' ';
+    return str;
+}
 
 function unhandled(req, res, next) {
     if (req.method !== 'GET') {
