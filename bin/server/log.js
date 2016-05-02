@@ -28,22 +28,16 @@ module.exports = function() {
             if (logged) return;
             logged = true;
 
-            var diff;
             var headerBytes = res._header ? res._header.length : 0;
-            var load;
             var totalBytes = getMetric(bytes + headerBytes);
 
-            // get the number of bytes and processing time
-            diff = '' + ((Date.now() - start) / 1000);
-            if (!/\./.test(diff)) diff += '.0';
-
             console.log(
-                chalk.bold('[REQ]') + '  : ' +
+                chalk.bold('[REQUEST]') + ' : ' +
                 req.id + ' : ' +
                 chalk.magenta(received) + ' : ' +
                 chalk.cyan(res.statusCode) + ' : ' +
                 chalk.green(totalBytes.value + ' ' + totalBytes.unit + 'B') + ' : ' +
-                chalk.yellow(addCharacters(diff, '0', true, 5)) + ' : ' +
+                chalk.yellow(getSeconds(Date.now() - start)) + ' : ' +
                 chalk.blue(req.url)
             );
         };
@@ -96,6 +90,16 @@ function getMetric(value) {
         unit: units[index],
         value: addCharacters(('' + val).substr(0, 5), ' ', false, 5)
     }
+}
+
+function getSeconds(milliseconds) {
+    var seconds = milliseconds / 1000;
+
+    const numeral = Math.round(seconds).toString();
+    const decimalLen = 4 - numeral.length;
+    const decimal = addCharacters(((seconds - numeral) * 1000).toString(), '0', false, 3).substr(0, decimalLen);
+
+    return numeral + (decimal.length > 0 ? '.' : ' ') + decimal;
 }
 
 function addCharacters(value, ch, after, length) {
