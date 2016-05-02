@@ -13,6 +13,7 @@ This application acts as either a **static file server** or a **proxy server** a
 * [Server Options](#server-options)
 * [Authentication / Authorization Options](#authentication--authorization-options)
 * [Brownie Options](#brownie-options)
+* [Cache Options](#cache-options)
 * [Client Application Authentication / Authorization Tools](#client-application-authentication--authorization-tools)
 * [Client Application Brownie Tools](#client-application-brownie-tools)
 * [Client Events](#client-events)
@@ -170,7 +171,7 @@ byu-wabs --port 80
 
 ### src
 
-Specify a source to serve files from. This can be either a file system path or the URL for another server to proxy requests for. You can also optionally specify the endpoint from which those resources should be available by specifying the path followed by ":" followed by the endpoint. If the endpoint is not specified then "/" is assumed. In short, the src should look like `[source]:[endpoint]:[watch]` where *source* is where to get the content, *endpoint* is the URL endpoint that will load from that source (defaulting to `/`), and *watch* will specify whether to watch that directory for changes (ignored when acting as a proxy).
+Specify a source to serve files from. This can be either a file system path or the URL for another server to proxy requests for. You can also optionally specify the endpoint from which those resources should be available by specifying the path followed by ":" followed by the endpoint. If the endpoint is not specified then "/" is assumed. In short, the src should look like `[source]:[endpoint]:[cache]` where *source* is where to get the content, *endpoint* is the URL endpoint that will load from that source (defaulting to `/`), and *cache* will specify whether to cache that directory (ignored when acting as a proxy).
 
 * **alias:** s
 * **name:** src
@@ -218,46 +219,6 @@ byu-wabs -v ./views/status.html
 
 ```sh
 byu-wabs --status-view /var/www/views/status.html
-```
-
-### watch
-
-If the src is pointing to a file system then this option is used to specify whether the file system should be watched for changes. It is recommended that for development this be set to true and for immutable production instances that it be set to false.
-
-* **alias:** w
-* **name:** watch
-* **type:** Boolean
-* **default:** `true`
-* **environment variable:** `WABS_WATCH`
-
-**Examples**
-
-```sh
-byu-wabs -w
-```
-
-```sh
-byu-wabs --watch
-```
-
-### watch-polling
-
-If you want to watch files through a network share or through a mounted file system then you may need to enable polling. Setting this option will specify the number of milliseconds to use as the file system polling rate.
-
-* **alias:** W
-* **name:** watch-polling
-* **type:** Number
-* **default:** `0`
-* **environment variable:** `WABS_WATCH_POLLING`
-
-**Examples**
-
-```sh
-byu-wabs -W 300
-```
-
-```sh
-byu-wabs --watch-polling 300
 ```
 
 ## Authentication / Authorization Options
@@ -380,6 +341,95 @@ byu-wabs -u http://somewhere.com/brownie-service
 
 ```sh
 byu-wabs --brownie-url http://somewhere.com/brownie-service
+```
+
+## Cache Options
+
+It is possible to cache files to provide fast load times for requests. These options deal with caching and keeping the cache fresh.
+
+### cache
+
+The cache size in megabytes (0 to 100). Setting this value to zero will disable caching. Proxied requests will not be cached.
+
+* **alias:** c
+* **name:** cache
+* **type:** Number
+* **default:** `50`
+* **environment variable:** `WABS_CACHE`
+
+### cache-ext
+
+A list of comma separated file extensions to include in cache.
+
+* **alias:** x
+* **name:** cacheExt
+* **type:** String
+* **default:** `html,htm,js,css`
+* **environment variable:** `WABS_CACHE_EXT`
+
+### cache-max
+
+The maximum file size in megabytes to allow into the cache.
+
+* **alias:** m
+* **name:** cacheMax
+* **type:** Number
+* **default:** `1`
+* **environment variable:** `WABS_CACHE_MAX`
+
+### watch
+
+If the src is pointing to a file system then this option is used to specify whether the file system should be watched for changes. It is recommended that for development this be set to true and for immutable production instances that it be set to false.
+
+* **alias:** w
+* **name:** watch
+* **type:** Boolean
+* **default:** `true`
+* **environment variable:** `WABS_WATCH`
+
+**Examples**
+
+```sh
+byu-wabs -w
+```
+
+```sh
+byu-wabs --watch
+```
+
+### watch-ignore
+
+An anymatch (https://www.npmjs.com/package/anymatch) pattern for paths to not watch.
+
+* **alias:** g
+* **name:** watchIgnore
+* **type:** String
+* **environment variable:** `WABS_WATCH_IGNORE`
+
+**Examples**
+
+```sh
+byu-wabs -g **/*.jpeg --watch-ignore **/*.jpg --watch-ignore **/*.png
+```
+
+### watch-polling
+
+If you want to watch files through a network share or through a mounted file system then you may need to enable polling. Setting this option will specify the number of milliseconds to use as the file system polling rate.
+
+* **alias:** W
+* **name:** watch-polling
+* **type:** Number
+* **default:** `0`
+* **environment variable:** `WABS_WATCH_POLLING`
+
+**Examples**
+
+```sh
+byu-wabs -W 300
+```
+
+```sh
+byu-wabs --watch-polling 300
 ```
 
 ## Client Application Authentication / Authorization Tools
