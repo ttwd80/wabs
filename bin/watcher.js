@@ -30,6 +30,9 @@ module.exports = function(config, cache) {
                 options.usePolling = true;
                 options.interval = config.watchPolling;
             }
+            if (config.watchIgnore.length > 0) {
+                options.ignored = config.watchIgnore;
+            }
             chokidar.watch(dirPath, options)
                 .on('change', cache.remove)
                 .on('unlink', cache.remove);
