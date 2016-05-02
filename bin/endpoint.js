@@ -2,6 +2,8 @@
 const chalk             = require('chalk');
 const path              = require('path');
 
+let firstRun = true;
+
 /**
  * Generate an endpoint map the maps endpoints to sources.
  * @param {object} config
@@ -41,11 +43,13 @@ exports.map = function(config) {
         // normalize the endpoint
         endpoint = exports.normalize(endpoint);
 
-        console.log(
-            chalk.bold('[MAP]') + ' : ' +
-            (cache ? chalk.green('use cache') : chalk.red(' no cache')) + ' : ' +
-            endpoint + ' => ' + source
-        );
+        if (firstRun) {
+            console.log(
+                chalk.bold('[SRCMAP]') + ' : ' +
+                (cache ? chalk.green('use cache') : chalk.red(' no cache')) + ' : ' +
+                endpoint + ' => ' + source
+            );
+        }
         //console.log('Endpoint ' + endpoint + ' maps to source ' + source + ' ' + (watch ? 'with': 'without') + ' watch');
 
         map[endpoint] = {
@@ -55,6 +59,8 @@ exports.map = function(config) {
             cache: cache
         };
     });
+
+    firstRun = false;
 
     return map;
 };

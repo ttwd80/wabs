@@ -76,7 +76,7 @@ Server.middleware = function(config) {
             }
             return result + '\n' + str;
         }, '');
-    console.log('WABS Configuration: ' + logStr);
+    console.log('WABS Configuration:\n', config);
 
     // normalize the configuration
     const options = Object.assign({}, Server.options, authenticate.options, brownie.options);
