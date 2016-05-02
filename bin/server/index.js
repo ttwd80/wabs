@@ -208,7 +208,7 @@ Server.options = {
     },
     watchIgnore: {
         alias: 'g',
-        description: 'A anymatch (https://www.npmjs.com/package/anymatch) pattern for paths to not watch.',
+        description: 'An anymatch (https://www.npmjs.com/package/anymatch) pattern for paths to not watch.',
         type: String,
         envVar: 'WABS_WATCH_IGNORE',
         group: 'cache'
