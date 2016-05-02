@@ -13,7 +13,7 @@ module.exports = function(config, cache) {
     Object.keys(endpointMap)
         .reduce(function(store, key) {
             const endpoint = endpointMap[key];
-            if (!endpoint.proxy && endpoint.watch) store.push(endpoint.source);
+            if (!endpoint.proxy && endpoint.cache) store.push(endpoint.source);
             return store;
         }, [])
         .map(value => value.split(path.sep))
