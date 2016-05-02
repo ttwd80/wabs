@@ -1,4 +1,5 @@
 "use strict";
+const chalk             = require('chalk');
 const path              = require('path');
 
 /**
@@ -40,7 +41,12 @@ exports.map = function(config) {
         // normalize the endpoint
         endpoint = exports.normalize(endpoint);
 
-        console.log('Endpoint ' + endpoint + ' maps to source ' + source + ' ' + (watch ? 'with': 'without') + ' watch');
+        console.log(
+            chalk.bold('[MAP]') + ' : ' +
+            (cache ? chalk.green('use cache') : chalk.red(' no cache')) + ' : ' +
+            endpoint + ' => ' + source
+        );
+        //console.log('Endpoint ' + endpoint + ' maps to source ' + source + ' ' + (watch ? 'with': 'without') + ' watch');
 
         map[endpoint] = {
             endpoint: endpoint,
