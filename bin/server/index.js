@@ -200,14 +200,21 @@ Server.options = {
         alias: 'w',
         description: 'If the src is pointing to a file system then this option is used to specify whether ' +
         'the file system should be watched for changes. It is recommended that for development this be set to ' +
-        'true and for immutable production instances that it be set to false.',
+        'true if caching has been enabled. For immutable production instances this options should be set to false.',
         type: Boolean,
         defaultValue: true,
         envVar: 'WABS_WATCH',
         group: 'cache'
     },
+    watchIgnore: {
+        alias: 'g',
+        description: 'A anymatch (https://www.npmjs.com/package/anymatch) pattern for paths to not watch.',
+        type: String,
+        envVar: 'WABS_WATCH_IGNORE',
+        group: 'cache'
+    },
     watchPolling: {
-        alias: 'W',
+        alias: 'P',
         description: 'If you want to watch files through a network share or through a mounted file system then ' +
         'you may need to enable polling. Setting this option will specify the number of milliseconds to use as ' +
         'the file system polling rate.',
