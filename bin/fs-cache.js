@@ -99,7 +99,7 @@ function fsCache(config) {
                     // update the size and log it
                     size = newSize;
                     console.log(
-                        chalk.cyan('[+CACHE]') + ' : ' +
+                        chalk.bold('[+CACHE]') + '  : ' +
                         log.getMetricString(content.length) + ' : ' +
                         logSize() + ' : ' + filePath
                     );
@@ -119,7 +119,7 @@ function fsCache(config) {
             size -= length;
             delete store[filePath];
             if (rxIsIndex.test(path.basename(filePath))) delete store[path.dirname(filePath) + path.sep];
-            console.log(chalk.magenta('[-CACHE]') + ' : ' + log.getMetricString(length) + ' : ' + logSize() + ' : ' + filePath);
+            console.log(chalk.bold('[-CACHE]') + '  : ' + log.getMetricString(length) + ' : ' + logSize() + ' : ' + filePath);
         }
     };
 
