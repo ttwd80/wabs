@@ -7,7 +7,7 @@ const path              = require('path');
  * @returns {object}
  */
 exports.map = function(config) {
-    var map = {};
+    const map = {};
 
     // build file system maps for all sources
     config.src.forEach(function (src) {
@@ -17,7 +17,7 @@ exports.map = function(config) {
         var parts;
         var rxHttpProxy = /(^https?:\/\/[\s\S]+?(?::\d+[\s\S]*?)?)(?::|$)/;
         var source;
-        var watch = config.watch;
+        var cache = !!config.cache;
 
         // determine if the source is a url to proxy
         match = rxHttpProxy.exec(src);
@@ -26,7 +26,7 @@ exports.map = function(config) {
         if (match) {
             source = match[1].replace(/\/$/, '');
             endpoint = src.substr(source.length + 1).split(':')[0];
-            watch = false;
+            cache = false;
             isProxy = true;
 
         // local file system
@@ -34,7 +34,7 @@ exports.map = function(config) {
             parts = src.split(':');
             source = path.resolve(process.cwd(), parts[0]).replace(/\/$/, '');
             endpoint = parts[1] || '';
-            if (parts.length === 3) watch = /true|1/i.test(parts[2]);
+            if (parts.length === 3) cache = /true|1/i.test(parts[2]);
         }
 
         // normalize the endpoint
@@ -46,7 +46,7 @@ exports.map = function(config) {
             endpoint: endpoint,
             proxy: isProxy,
             source: source,
-            watch: watch
+            cache: cache
         };
     });
 
