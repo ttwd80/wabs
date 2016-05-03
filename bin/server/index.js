@@ -22,6 +22,9 @@ const staticEp      = require('./static');
 const statusView    = require('./view');
 const watcher       = require('../watcher');
 
+// enable the env file
+Command.settings.envFileOption = true;
+
 module.exports = Server;
 
 /**
