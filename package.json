@@ -17,7 +17,7 @@
     "chalk": "^1.1.1",
     "cheerio": "^0.20.0",
     "chokidar": "^1.4.2",
-    "command-line-callback": "^2.3.1",
+    "command-line-callback": "^2.5.1",
     "compression": "^1.6.1",
     "connect-timeout": "^1.7.0",
     "cookie-parser": "^1.4.1",
