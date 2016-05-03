@@ -5,7 +5,6 @@
 const bodyParser    = require('body-parser');
 const chalk         = require('chalk');
 const crypt         = require('../brownie/crypt');
-const loadFromEnv   = require('./env');
 const noop          = require('./noop');
 const services      = require('./services');
 
@@ -26,7 +25,6 @@ Object.freeze(levels);
 module.exports = Brownie;
 
 function Brownie(config) {
-    loadFromEnv(config, Brownie.options);
     var crypto;
 
     console.log('Brownie mode: ' + config.brownie);

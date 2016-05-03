@@ -2,7 +2,6 @@
 const camel             = require('../camel');
 const chalk             = require('chalk');
 const crypto            = require('crypto');
-const loadFromEnv       = require('./env');
 const noop              = require('./noop');
 const oauth             = require('byu-wabs-oauth');
 const path              = require('path');
@@ -17,7 +16,6 @@ const authStage = {
 };
 
 function Authenticate(config) {
-    loadFromEnv(config, Authenticate.options);
     console.log('Authenticate mode: ' + config.authenticate);
 
     if (config.authenticate === 'none') return noop;

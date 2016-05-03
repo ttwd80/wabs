@@ -8,8 +8,7 @@ const cookieParser  = require('cookie-parser');
 const error         = require('./error');
 const endpoint      = require('./../endpoint');
 const express       = require('express');
-const fsCache        = require('../fs-cache');
-const loadFromEnv   = require('./env');
+const fsCache       = require('../fs-cache');
 const injector      = require('./injector');
 const init          = require('./init');
 const log           = require('./log');
@@ -30,7 +29,6 @@ module.exports = Server;
  * @params {object} [config]
  **/
 function Server(config) {
-    loadFromEnv(config, Server.options);
 
     var app = express();
 
@@ -155,11 +153,6 @@ Server.options = {
         defaultValue: '/wabs',
         envVar: 'WABS_ENDPOINT',
         group: 'server'
-    },
-    envFile: {
-        description: 'Path to an environment file (relative to the current working directory and in JSON or ENV format)' +
-        ' from which to load environment variables.',
-        type: String
     },
     port: {
         alias: 'p',
