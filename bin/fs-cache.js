@@ -20,7 +20,7 @@ function fsCache(config) {
     const factory = {};
     const limit = config.cache * 1000000;
     const extensions = extensionsMap(config.cacheExt.toLowerCase().split(','));
-    const maxFileSize = config.cacheMax * 1000;
+    const maxFileSize = config.cacheMax * 1000000;
     const store = {};
     let size = 0;
 
