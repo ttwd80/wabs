@@ -121,7 +121,7 @@ Server.options = {
         type: Number,
         validate: v => v >= 0 && v <= 100,
         defaultValue: 50,
-        envVar: 'WABS_CACHE',
+        env: 'WABS_CACHE',
         group: 'cache'
     },
     cacheExt: {
@@ -129,7 +129,7 @@ Server.options = {
         description: 'A list of comma separated file extensions to include in cache.',
         type: String,
         defaultValue: 'html,htm,js,css',
-        envVar: 'WABS_CACHE_EXT',
+        env: 'WABS_CACHE_EXT',
         group: 'cache'
     },
     cacheMax: {
@@ -138,14 +138,14 @@ Server.options = {
         type: Number,
         validate: v => v >= 0,
         defaultValue: 1,
-        envVar: 'WABS_CACHE_MAX',
+        env: 'WABS_CACHE_MAX',
         group: 'cache'
     },
     development: {
         alias: 'd',
         description: 'Set the server into development mode, removing optimizations while improving the ability to debug.',
         type: Boolean,
-        envVar: 'WABS_DEVELOPMENT',
+        env: 'WABS_DEVELOPMENT',
         group: 'server'
     },
     endpoint: {
@@ -154,7 +154,7 @@ Server.options = {
         'fall within this path will not be served.',
         type: String,
         defaultValue: '/wabs',
-        envVar: 'WABS_ENDPOINT',
+        env: 'WABS_ENDPOINT',
         group: 'server'
     },
     port: {
@@ -162,7 +162,7 @@ Server.options = {
         description: 'The port number to start the server on.',
         type: Number,
         defaultValue: 9000,
-        envVar: 'WABS_PORT',
+        env: 'WABS_PORT',
         group: 'server'
     },
     src: {
@@ -178,7 +178,7 @@ Server.options = {
         type: String,
         multiple: true,
         defaultValue: './:/',
-        envVar: 'WABS_SRC',
+        env: 'WABS_SRC',
         group: 'server'
     },
     statusView: {
@@ -189,7 +189,7 @@ Server.options = {
         'server is acting as a proxy then status views will not display, instead the response from the proxied ' +
         'server will be sent.',
         type: String,
-        envVar: 'WABS_STATUS_VIEW',
+        env: 'WABS_STATUS_VIEW',
         group: 'server'
     },
     watch: {
@@ -199,7 +199,7 @@ Server.options = {
         'true if caching has been enabled. For immutable production instances this options should be set to false.',
         type: Boolean,
         defaultValue: true,
-        envVar: 'WABS_WATCH',
+        env: 'WABS_WATCH',
         group: 'cache'
     },
     watchIgnore: {
@@ -207,7 +207,7 @@ Server.options = {
         description: 'An anymatch (https://www.npmjs.com/package/anymatch) pattern for paths to not watch.',
         type: String,
         multiple: true,
-        envVar: 'WABS_WATCH_IGNORE',
+        env: 'WABS_WATCH_IGNORE',
         group: 'cache'
     },
     watchPolling: {
@@ -217,7 +217,7 @@ Server.options = {
         'the file system polling rate.',
         type: Number,
         validate: function(v) { return v > 0; },
-        envVar: 'WABS_WATCH_POLLING',
+        env: 'WABS_WATCH_POLLING',
         group: 'cache'
     }
 };

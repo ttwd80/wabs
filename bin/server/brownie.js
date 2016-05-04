@@ -79,7 +79,7 @@ Brownie.options = {
         transform: (v) => v.toLowerCase(),
         validate: (v) => levels.indexOf(v.toLowerCase()) !== -1,
         defaultValue: 'always',
-        envVar: 'WABS_BROWNIE',
+        env: 'WABS_BROWNIE',
         group: 'brownie'
     },
     brownieUrl: {
@@ -87,7 +87,7 @@ Brownie.options = {
         description: 'The URL to use as a web service to encode and decode brownie data.',
         type: String,
         defaultValue: 'https://lambda.byu.edu/ae/prod/brownie-dumper/cgi/brownie-dumper.cgi/json', 
-        envVar: 'WABS_BROWNIE_URL',
+        env: 'WABS_BROWNIE_URL',
         group: 'brownie'
     }
 };
