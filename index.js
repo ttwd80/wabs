@@ -6,5 +6,7 @@ const server        = require('./bin/server');
 if (require.main === module) {
     Command.evaluate();
 } else {
-    module.exports = server;
+    module.exports = function (config) {
+        return Command.execute('server', config);
+    };
 }
