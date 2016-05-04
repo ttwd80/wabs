@@ -25,6 +25,7 @@ const watcher       = require('../watcher');
 // enable the env file
 Command.settings.envFileOption = true;
 
+
 module.exports = Server;
 
 /**
