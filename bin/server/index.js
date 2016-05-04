@@ -165,6 +165,13 @@ Server.options = {
         env: 'WABS_PORT',
         group: 'server'
     },
+    protocol: {
+        alias: 'l',
+        description: 'The protocol to use for redirects. Defaults to the protocol that was received with the original request.',
+        type: String,
+        env: 'WABS_PROTOCOL',
+        group: 'server'
+    },
     src: {
         alias: 's',
         description: 'Specify a source to serve files from. This can be either a file system path or the URL for ' +
