@@ -1,6 +1,6 @@
 {
   "name": "byu-wabs",
-  "version": "1.4.5",
+  "version": "1.4.6",
   "description": "The BYU Web Application Bootstrap Server is a static file server that integrates backward interoperability with legacy applications stateful nature and also handles OAuth token management.",
   "main": "index.js",
   "bin": {
