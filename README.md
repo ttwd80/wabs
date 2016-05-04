@@ -283,6 +283,15 @@ The encryption secret to use to encrypt and decrypt the refresh token that is se
 * **type:** String
 * **environment variable:** `WABS_ENCRYPT_SECRET`
 
+### host
+
+The full host name including protocol and port number that will be used to reach this server. If not specified then the server will automatically attempt to determine this information, but if the server is behind a proxy then it will be incorrect. Optionally, you may include a partial host and the server will attempt to fill the in the rest. Each of the following examples are valid: `https://somewhere.com:8000`, `https`, `https:8000`, `somewhere.com:8000`, `:8000`.
+
+* **alias:** h
+* **name:** host
+* **type:** String
+* **environment variable:** `WABS_HOST`
+
 ### well-known-url
 
 The well known URL to use to get authentication information from.
