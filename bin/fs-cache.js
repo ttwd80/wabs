@@ -146,7 +146,7 @@ function getFilePathData(filePath, maxFileSize) {
             }
         })
         .then(function(stats) {
-            if (stats.size <= maxFileSize) {
+            if (rxIsHtml.test(stats.filePath) || stats.size <= maxFileSize) {
                 return readFile(stats.filePath)
                     .then(function(content) {
                         stats.content = content;
