@@ -39,9 +39,9 @@ function Authenticate(config) {
         if (config.host && (match = rx.exec(config.host))) {
             host = (match[1] ? match[1] : req.protocol) + '://' +
                 (match[2] ? match[2] : receivedHost[2]) +
-                (match[3] ? match[3] : receivedHost[3]);
+                (match[3] ? match[3] : receivedHost[3] || '');
         } else {
-            host = req.protocol + '://' + receivedHost[2] + receivedHost[3]
+            host = req.protocol + '://' + receivedHost[2] + (receivedHost[3] || '')
         }
         url = host + config.endpoint + '/auth/';
         if (endpoint) url += endpoint;
