@@ -110,7 +110,10 @@ function fsCache(config) {
                 }
 
                 return data;
-            }, () => null);
+            }, function(e) {
+                console.error(e.stack);
+                return null;
+            });
     };
 
     factory.remove = function(filePath) {
