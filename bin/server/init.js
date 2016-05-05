@@ -63,7 +63,7 @@ module.exports = function(config, cache) {
             cache.get(match.source + urlPath)
                 .then(function(data) {
                     req.wabs.fsStat = data;
-                    if (data.inject) req.wabs.inject = true;
+                    if (data && data.inject) req.wabs.inject = true;
                     next();
                 }, next);
         }
