@@ -9,6 +9,7 @@ const error         = require('./error');
 const endpoint      = require('./../endpoint');
 const express       = require('express');
 const fsCache       = require('../fs-cache');
+const health        = require('./health');
 const injector      = require('./injector');
 const init          = require('./init');
 const log           = require('./log');
@@ -96,6 +97,7 @@ Server.middleware = function(config) {
         log(),
         compression({}),
         init(config, cache),
+        health(config),
         cookieParser(),
         brownie(config),
         proxy(),
