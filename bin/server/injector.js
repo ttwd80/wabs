@@ -21,9 +21,9 @@ function injector(config) {
 
     // generate joined scripts
     fullScripts = {
-        auth: scripts.init + scripts.auth,
-        brownie: scripts.init + scripts.brownie,
-        full: scripts.init + scripts.auth + scripts.brownie
+        auth: wrapScripts(scripts.init + scripts.auth),
+        brownie: wrapScripts(scripts.init + scripts.brownie),
+        full: wrapScripts(scripts.init + scripts.auth + scripts.brownie)
     };
 
     return function injector(req, res, next) {
@@ -144,4 +144,8 @@ function replaceWithMeta(content, data, name) {
     var sData = data && typeof data === 'object' ? encodeURIComponent(JSON.stringify(data)) : data;
     return content
         .replace('<!-- ' + name + ' -->', "<meta name='" + name + "' content='" + sData + "'>");
+}
+
+function wrapScripts(script) {
+    return '(function(){if(window.hasOwnProperty("byu"))return;\n' + script + '})()';
 }
