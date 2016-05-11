@@ -356,7 +356,10 @@ function decodeWabAuthCookie(req, eSecret) {
  */
 function gateway(req, res, cKey, cSecret, wkUrl, refreshToken, eSecret) {
     oauth.getAccessTokenFromRefreshToken(cKey, cSecret, wkUrl, refreshToken, function (err, data) {
-        if (err) return next(err);
+        if (err) {
+            console.error(err.stack);
+            res.json({ error: 'Internal server error' });
+        }
 
         // if there is an error then send the error
         if (data.error) {
