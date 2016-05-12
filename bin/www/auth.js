@@ -241,9 +241,9 @@
     function setAutoRefreshTimeout() {
         clearTimeout(autoRefreshTimeoutId);
         if (autoRefresh < 0) {
-            autoRefreshTimeoutId = setTimeout(auth.refresh, auth.expires + (autoRefresh * 1000));
+            autoRefreshTimeoutId = setTimeout(auth.refresh, auth.expires + (autoRefresh * 60000));
         } else if (autoRefresh > 0) {
-            autoRefreshTimeoutId = setTimeout(auth.refresh, autoRefresh * 1000);
+            autoRefreshTimeoutId = setTimeout(auth.refresh, autoRefresh * 60000);
         }
     }
 
