@@ -53,6 +53,7 @@ function Authenticate(config) {
     services.register('oauth.login', config.endpoint + '/auth/oauth-login', 'The URL to use to log in to OAuth.');
     services.register('oauth.code', config.endpoint + '/auth/oauth-code', 'The URL to direct OAuth to that will receive the OAuth code.');
     services.register('oauth.refresh', config.endpoint + '/auth/oauth-refresh', 'The URL to call to attempt to refresh the OAuth token.');
+    services.register('oauth.revoke', config.endpoint + '/auth/oauth-revoke', 'The URL to call to revoke the OAuth token.');
 
     return function authenticate(req, res, next) {
 
