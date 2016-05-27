@@ -11,6 +11,7 @@ module.exports = function() {
         // configure the proxy request
         var requestConfig = {
             body: req.body,
+            encoding: null,
             headers: req.header,
             method: 'GET',
             qs: req.query,
@@ -37,6 +38,7 @@ module.exports = function() {
 
             // if the content is html then send injected html, otherwise send the content as received
             if (/text\/html/i.test(contentType)) {
+                body = body.toString();
                 let data = injector.process(body);
                 if (data.authMode !== null) req.wabs.authMode = data.authMode;
                 req.wabs.content = data.html;
