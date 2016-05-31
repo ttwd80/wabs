@@ -12,7 +12,7 @@ module.exports = function() {
         var requestConfig = {
             body: req.body,
             encoding: null,
-            headers: req.header,
+            headers: req.headers,
             method: 'GET',
             qs: req.query,
             url: req.wabs.proxy
