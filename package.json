@@ -13,7 +13,7 @@
     "bluebird": "^3.3.1",
     "bluebird-settle": "^1.0.2",
     "body-parser": "^1.15.0",
-    "byu-wabs-oauth": "0.0.9",
+    "byu-wabs-oauth": "^1.0.0",
     "chalk": "^1.1.1",
     "cheerio": "^0.20.0",
     "chokidar": "^1.4.2",
