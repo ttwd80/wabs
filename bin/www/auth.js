@@ -2,7 +2,7 @@
     "use strict";
     var accessToken;
     var auth = {};
-    var autoRefresh = 0;
+    var autoRefresh = true;
     var autoRefreshTimeoutId;
     var cookieName = 'wabs-auth';
     var dispatch = byu.__dispatch;
@@ -14,7 +14,7 @@
         enumerable: true,
         configurable: false,
         get: function() { return accessToken; },
-        set: function(v) { throw Error('accessToken is read only'); }
+        set: function() { throw Error('accessToken is read only'); }
     });
 
     /**
@@ -30,9 +30,9 @@
             return autoRefresh;
         },
         set: function(value) {
-            if (typeof value !== 'number' || isNaN(value)) value = 0;
-            if (autoRefresh !== value) {
-                autoRefresh = value;
+            var bValue = !!value;
+            if (autoRefresh !== bValue) {
+                autoRefresh = bValue;
                 setAutoRefreshTimeout();
                 dispatch('auth-auto-refresh', autoRefresh);
             }
@@ -43,7 +43,7 @@
         enumerable: true,
         configurable: false,
         get: function() { return !expires || Date.now() >= expires; },
-        set: function() { throw Error('expires is read only'); }
+        set: function() { throw Error('expired is read only'); }
     });
 
     Object.defineProperty(auth, 'expires', {
@@ -74,12 +74,14 @@
      * @params {boolean, string} [redirect=window.location.toString()]
      */
     auth.logout = function(casLogout, redirect) {
+        var tokens = { access: accessToken, refresh: refreshToken };
 
         // erase all auth data
         accessToken = void 0;
         expires = void 0;
         refreshToken = void 0;
         eraseCookie(cookieName);
+        eraseCookie('wabs-auth-stage');
         clearTimeout(autoRefreshTimeoutId);
         byu.user = null;
 
@@ -87,28 +89,43 @@
         if (arguments.length < 1) casLogout = true;
         if (arguments.length < 2 || redirect === true) redirect = window.location.toString();
 
-        // dispatch the logout event
-        dispatch('auth-logout', {
-            casLogout: !!casLogout,
-            redirect: redirect
-        });
+        // revoke the tokens if they are set
+        if (tokens.access && tokens.refresh) {
+            ajaxGet(byu.wabs.services['oauth.revoke'].url + '?access=' + tokens.access + '&refresh=' + tokens.refresh, revokeHandler);
+        } else {
+            revokeHandler(200, 'ok');
+        }
 
-        // if there is no redirect but we are doing CAS logout then use an iframe to log out
-        if (!redirect && casLogout) {
-            if (logoutIframe) logoutIframe.parentNode.removeChild(logoutIframe);
-            logoutIframe = document.createElement('iframe');
-            logoutIframe.style.display = 'none';
-            logoutIframe.style.position = 'absolute';
-            logoutIframe.style.zIndex = -1000;
-            logoutIframe.src = 'https://cas.byu.edu/cas/logout';
-            document.querySelector('body').appendChild(logoutIframe);
+        function revokeHandler(status, text) {
+            if (status === 200) {
 
-        // perform a standard CAS logout with redirect
-        } else if (redirect && casLogout) {
-            window.location = 'https://cas.byu.edu/cas/logout?service=' + encodeURIComponent(redirect);
+                // dispatch the logout event
+                dispatch('auth-logout', {
+                    casLogout: !!casLogout,
+                    redirect: redirect
+                });
 
-        } else if (redirect) {
-            window.location = redirect;
+                // if there is no redirect but we are doing CAS logout then use an iframe to log out
+                if (!redirect && casLogout) {
+                    if (logoutIframe) logoutIframe.parentNode.removeChild(logoutIframe);
+                    logoutIframe = document.createElement('iframe');
+                    logoutIframe.style.display = 'none';
+                    logoutIframe.style.position = 'absolute';
+                    logoutIframe.style.zIndex = -1000;
+                    logoutIframe.src = 'https://cas.byu.edu/cas/logout';
+                    document.querySelector('body').appendChild(logoutIframe);
+
+                    // perform a standard CAS logout with redirect
+                } else if (redirect && casLogout) {
+                    window.location = 'https://cas.byu.edu/cas/logout?service=' + encodeURIComponent(redirect);
+
+                } else if (redirect) {
+                    window.location = redirect;
+                }
+
+            } else {
+                dispatch('auth-error', Error(text));
+            }
         }
     };
 
@@ -120,7 +137,7 @@
         var err;
         if (arguments.length === 0) callback = function() {};
         if (auth.refreshToken) {
-            ajaxGet(byu.wabs.services['oauth.refresh'].url + '?code=' + auth.refreshToken, function(status, text) {
+            ajaxGet(byu.wabs.services['oauth.refresh'].url + '?access=' + auth.accessToken + '&code=' + auth.refreshToken, function(status, text) {
                 var data;
                 var err;
 
@@ -178,21 +195,21 @@
         xhr.send();
     }
 
-    function createCookie(name,value,days) {
+    function createCookie(name, value, days) {
         var date;
-        var expires;
+        var expiration;
         if (days) {
             date = new Date();
-            date.setTime(date.getTime()+(days*24*60*60*1000));
-            expires = "; expires="+date.toGMTString();
+            date.setTime(date.getTime() + days * 86400000);
+            expiration = "; expires=" + date.toGMTString();
         } else {
-            expires = "";
+            expiration = "";
         }
-        document.cookie = name+"="+value+expires+"; path=/";
+        document.cookie = name + "=" + value + expiration + "; path=/";
     }
 
     function eraseCookie(name) {
-        createCookie(name,"",-1);
+        createCookie(name, "", -1);
     }
 
     function initialize(jsonString, storeCookie) {
@@ -240,24 +257,18 @@
     // set the next auto refresh time
     function setAutoRefreshTimeout() {
         clearTimeout(autoRefreshTimeoutId);
-        if (autoRefresh < 0) {
-            autoRefreshTimeoutId = setTimeout(auth.refresh, auth.expires + (autoRefresh * 60000));
-        } else if (autoRefresh > 0) {
-            autoRefreshTimeoutId = setTimeout(auth.refresh, autoRefresh * 60000);
+        if (autoRefresh && typeof auth.expires !== 'undefined') {
+            autoRefreshTimeoutId = setTimeout(auth.refresh, auth.expires + 1000);
         }
     }
 
     // initialize
     initialize(readCookie(cookieName) ? decodeURIComponent(readCookie(cookieName)) : null, false);
 
-    // look for auth-auto-refresh metadata and set auto refresh
+    // look for auth-auto-refresh metadata and set auto refresh to true or false
     (function() {
         var element = document.querySelector('meta[name="wabs-auth-refresh"]');
-        if (!element) {
-            auth.autoRefresh = 0;
-        } else {
-            auth.autoRefresh = parseInt(element.getAttribute('content'));
-        }
+        auth.autoRefresh = !element || !/^(?:false|0)$/i.test(element.getAttribute('content'));
     })();
 
     // store the auth object

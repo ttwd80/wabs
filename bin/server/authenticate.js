@@ -3,7 +3,7 @@ const camel             = require('../camel');
 const chalk             = require('chalk');
 const crypto            = require('crypto');
 const noop              = require('./noop');
-const oauth             = require('byu-wabs-oauth');
+const byuOauth          = require('byu-wabs-oauth');
 const path              = require('path');
 const services          = require('./services');
 
@@ -29,6 +29,7 @@ function Authenticate(config) {
     const cSecret = config.consumerSecret;
     const eSecret = config.encryptSecret;
     const wkUrl = config.wellKnownUrl;
+    const oauth = byuOauth(config.consumerKey, config.consumerSecret, config.wellKnownUrl);
 
     function getRedirectUrl(req, endpoint) {
         const rx = /^(https?)?(?::\/\/)?([a-z0-9\.\-]+)?(:\d+)?$/i;
@@ -52,8 +53,8 @@ function Authenticate(config) {
     services.register('auth.cas', config.endpoint + '/auth/cas', 'The URL to direct CAS to to verify the CAS token. A redirect query parameter is required.');
     services.register('oauth.login', config.endpoint + '/auth/oauth-login', 'The URL to use to log in to OAuth.');
     services.register('oauth.code', config.endpoint + '/auth/oauth-code', 'The URL to direct OAuth to that will receive the OAuth code.');
-    services.register('oauth.refresh', config.endpoint + '/auth/oauth-refresh', 'The URL to call to attempt to refresh the OAuth token.');
-    services.register('oauth.revoke', config.endpoint + '/auth/oauth-revoke', 'The URL to call to revoke the OAuth token.');
+    services.register('oauth.refresh', config.endpoint + '/auth/oauth-refresh', 'The URL to call to attempt to refresh the OAuth token. This call requires that you include the query parameter: code (that has the value of the encoded refresh token).');
+    services.register('oauth.revoke', config.endpoint + '/auth/oauth-revoke', 'The URL to call to revoke the OAuth token. This call requires that you include the query parameters: access (that has the value of the access token) and refresh (that has the value of the encoded refresh token).');
 
     return function authenticate(req, res, next) {
 
@@ -71,11 +72,11 @@ function Authenticate(config) {
             // CAS verified login and refresh token exists
             } else if (req.query.ticket && auth && auth.refreshToken) {
                 let redirectUrl = getRedirectUrl(req, 'oauth-code');
-                refresh(req, res, next, cKey, cSecret, wkUrl, auth.refreshToken, redirectUrl, eSecret);
+                refresh(req, res, next, oauth, auth.accessToken, auth.refreshToken, redirectUrl, eSecret);
 
             // CAS verified login but no refresh token
             } else if (req.query.ticket) {
-                login(req, res, next, cKey, cSecret, wkUrl, getRedirectUrl(req, 'oauth-code'));
+                login(req, res, next, oauth, getRedirectUrl(req, 'oauth-code'));
 
             // CAS did not verify login
             } else {
@@ -85,16 +86,31 @@ function Authenticate(config) {
 
         // client oauth login request
         } else if (req.wabs.endpoint === 'auth/oauth-login') {
-            login(req, res, next, cKey, cSecret, wkUrl, getRedirectUrl(req, 'oauth-code'));
+            login(req, res, next, oauth, getRedirectUrl(req, 'oauth-code'));
 
         // oauth response code redirects to here
         } else if (req.wabs.endpoint === 'auth/oauth-code') {
-            code(req, res, next, cKey, cSecret, wkUrl, getRedirectUrl(req, 'oauth-code'), eSecret);
+            code(req, res, next, oauth, getRedirectUrl(req, 'oauth-code'), eSecret);
 
         // handle the refresh token to get latest authorization code
-        } else if (req.wabs.endpoint === 'auth/oauth-refresh' && req.query.code) {
+        } else if (req.wabs.endpoint === 'auth/oauth-refresh' && req.query.access && req.query.code) {
             let refreshToken = decrypt(eSecret, req.query.code);
-            gateway(req, res, cKey, cSecret, wkUrl, refreshToken, eSecret);
+            gateway(req, res, next, oauth, req.query.access, refreshToken, eSecret);
+            
+        // handle a revoke command
+        } else if (req.wabs.endpoint === 'auth/oauth-revoke') {
+            if (!req.query.access && !req.query.refresh) {
+                res.status(400).send('Unable to revoke oauth tokens. Missing required query parameters: access and refresh');
+            } else if (!req.query.access) {
+                res.status(400).send('Unable to revoke oauth tokens. Missing required query parameter: access');
+            } else if (!req.query.refresh) {
+                res.status(400).send('Unable to revoke oauth tokens. Missing required query parameter: refresh');
+            } else {
+                let refreshToken = decrypt(eSecret, req.query.refresh);
+                oauth.revokeTokens(req.query.access, refreshToken)
+                    .then(() => res.status(200).send('OK'))
+                    .catch(next);
+            }
 
         // verify authentication with app root load
         } else if (!req.wabs.endpoint && req.wabs.inject && req.wabs.authMode === 'always') {
@@ -233,13 +249,11 @@ function analyzeOauthError(data) {
  * @param {object} req The request object.
  * @param {object} res The response object.
  * @param {function} next The next middleware function.
- * @param {string} cKey The client key
- * @param {string} cSecret The client secret.
- * @param {string} wkUrl The well known URL.
+ * @param {object} ouath The oauth instance object.
  * @param {string} redirectURI The redirect URL.
  * @param {string} eSecret The secret to encode the refresh token.
  */
-function code(req, res, next, cKey, cSecret, wkUrl, redirectURI, eSecret) {
+function code(req, res, next, oauth, redirectURI, eSecret) {
     var state;
 
     // attempt to build the redirect URL
@@ -262,23 +276,23 @@ function code(req, res, next, cKey, cSecret, wkUrl, redirectURI, eSecret) {
         res.redirect(state.redirect);
 
     } else {
-        oauth.getAccessTokenFromAuthorizationCode(cKey, cSecret, wkUrl, req.query.code, redirectURI, function(err, data) {
-            if (err) {
-                console.error(err.stack);
-                next(err);
-            } else {
+        oauth.getCodeGrantAccessToken(req.query.code, redirectURI)
+            .then(function(token) {
                 var auth = {
-                    accessToken: data.access_token,
-                    expiresIn: data.results.expires_in,
-                    openId: data.open_id,
-                    refreshToken: encrypt(eSecret, data.refresh_token),
+                    accessToken: token.accessToken,
+                    expiresIn: token.expiresIn,
+                    openId: token.openId,
+                    refreshToken: encrypt(eSecret, token.refreshToken),
                     status: ''
                 };
                 res.cookie('wabs-auth-stage', authStage.authorized);
                 res.cookie('wabs-auth', JSON.stringify(auth));
                 res.redirect(state.redirect);
-            }
-        });
+            })
+            .catch(function(err) {
+                console.error(err.stack);
+                next(err);
+            });
     }
 }
 
@@ -317,10 +331,12 @@ function decrypt(secret, text){
  */
 function encodeWabAuthCookie(res, eSecret, data) {
     var auth = {
-        accessToken: data.access_token,
-        expiresIn: data.results.expires_in,
-        openId: data.open_id,
-        refreshToken: encrypt(eSecret, data.refresh_token),
+        accessToken: data.accessToken,
+        expiresIn: data.expiresIn,
+        openId: data.openId,
+        refreshToken: encrypt(eSecret, data.refreshToken),
+        scope: data.scope,
+        tokenType: data.tokenType,
         status: ''
     };
     res.cookie('wabs-auth', JSON.stringify(auth));
@@ -349,47 +365,19 @@ function decodeWabAuthCookie(req, eSecret) {
  * Perform a refresh that will simply return whether the refresh worked or not.
  * @param {object} req The request object.
  * @param {object} res The response object.
- * @param {string} cKey The client key
- * @param {string} cSecret The client secret.
- * @param {string} wkUrl The well known URL.
+ * @param {function} next The next middleware function.
+ * @param {object} oauth The oauth instance.
+ * @param {string} accessToken The access token.
  * @param {string} refreshToken The decoded refresh token.
  * @param {string} eSecret The secret to encode the refresh token with.
  */
-function gateway(req, res, cKey, cSecret, wkUrl, refreshToken, eSecret) {
-    oauth.getAccessTokenFromRefreshToken(cKey, cSecret, wkUrl, refreshToken, function (err, data) {
-        if (err) {
-            console.error(err.stack);
-            res.json({ error: 'Internal server error' });
-        }
-
-        // if there is an error then send the error
-        if (data.error) {
-            let err = analyzeOauthError(data);
-            res.json({ error: err });
-
-        // send the data
-        } else {
-            let authData = encodeWabAuthCookie(res, eSecret, data);
-            authData.error = null;
+function gateway(req, res, next, oauth, accessToken, refreshToken, eSecret) {
+    oauth.refreshTokens(accessToken, refreshToken)
+        .then(function(token) {
+            let authData = encodeWabAuthCookie(res, eSecret, token);
             res.json(authData);
-        }
-    });
-}
-
-/**
- * Get a query parameter off of a URL
- * @param url
- * @param name
- * @returns {string, undefined}
- */
-function getQueryParameter(url, name) {
-    var i;
-    var params = (url.split('?')[1] || '').split('&');
-    var pair;
-    for (i = 0; i < params.length; i++) {
-        pair = params[i].split('=');
-        if (pair[0] === name) return pair[1];
-    }
+        })
+        .catch(next);
 }
 
 /**
@@ -397,22 +385,16 @@ function getQueryParameter(url, name) {
  * @param {object} req The request object.
  * @param {object} res The response object.
  * @param {function} next The next middleware function.
- * @param {string} key The client key
- * @param {string} secret The client secret.
- * @param {string} wkUrl The well known URL.
+ * @param {object} oauth The oauth instance.
  * @param {string} redirectURI The redirect URL.
  */
-function login(req, res, next, key, secret, wkUrl, redirectURI) {
+function login(req, res, next, oauth, redirectURI) {
     const state = { brownie: req.wabs.brownie, redirect: req.query.redirect || '/' };
-    const reqConfig = {
-        redirect_uri: redirectURI,
-        scope: 'openid',
-        state: encodeURIComponent(JSON.stringify(state))
-    };
-    oauth.generateAuthorizationCodeRequestURL(key, secret, wkUrl, reqConfig, function (err, url) {
-        if (err) return next(err);
-        res.redirect(url);
-    });
+    oauth.getCodeGrantAuthorizeUrl(redirectURI, 'openid', encodeURIComponent(JSON.stringify(state)))
+        .then(function(url) {
+            res.redirect(url);
+        })
+        .catch(next);
 }
 
 /**
@@ -420,32 +402,17 @@ function login(req, res, next, key, secret, wkUrl, redirectURI) {
  * @param {object} req The request object.
  * @param {object} res The response object.
  * @param {function} next The next function.
- * @param {string} cKey The client key
- * @param {string} cSecret The client secret.
- * @param {string} wkUrl The well known URL.
+ * @param {object} oauth The oauth instance.
+ * @param {string} accessToken The access token to use.
  * @param {string} refreshToken The encrypted refresh token to use.
  * @param {string} redirectUrl The URL to direct back to after refresh.
  * @param {string} eSecret The secret to encode the refresh token.
  */
-function refresh(req, res, next, cKey, cSecret, wkUrl, refreshToken, redirectUrl, eSecret) {
-    oauth.getAccessTokenFromRefreshToken(cKey, cSecret, wkUrl, refreshToken, function (error, data) {
-        if (error && error.data) error.data = JSON.parse(error.data);
-
-        // refresh token expired so redirect to login
-        if (error && error.data && error.data.error === 'invalid_grant') {
-            login(req, res, next, cKey, cSecret, wkUrl, redirectUrl);
-
-        // if another error then send a status view with details about the error
-        } else if (error && error.data && error.data.error) {
-            let err = analyzeOauthError(error);
-            let body = err.description;
-            if (err.url) body += '<br><a href="' + err.url + '" target="_blank">More Details...</a>';
-            res.sendStatusView(500, err.title, body);
-
-        // store auth stage cookie and redirect
-        } else {
+function refresh(req, res, next, oauth, accessToken, refreshToken, redirectUrl, eSecret) {
+    oauth.refreshTokens(accessToken, refreshToken)
+        .then(function(token) {
             res.cookie('wabs-auth-stage', authStage.authorized);
             res.redirect(req.query.redirect);
-        }
-    });
+        })
+        .catch(next);
 }
