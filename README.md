@@ -451,17 +451,16 @@ You can add meta tags to your HTML document that will alter how the server inter
 
 #### wabs-auth
 
-Set the authenticate mode within the HTML page to either `manual` or `always` using ```<meta name=“wabs-auth” content=“manual”>``` or ```<meta name=“wabs-auth” content=“always”>```
+Set the authenticate mode within the HTML page to either `manual` or `always` using ```<meta name="wabs-auth" content="manual">``` or ```<meta name="wabs-auth" content="always">```
 
 #### wabs-auth-refresh
 
-Set the authentication auto refresh using ```<meta name=“wabs-auth-refresh” content=“0”>``` where the content value is a number.
+Set the authentication auto refresh using ```<meta name="wabs-auth-refresh" content="true">```.
 
-- If the number is zero `0` then authentication auto refresh will be disabled.
-- If the number is positive `>0` then the auto refresh will occur number of minutes specified.
-- If the number is negative `<0` then the refresh will occur that many number of minutes before the OAuth access token expires.
+- If the content value is `0` or `false` then authentication auto refresh will be disabled.
+- Any other value will enable auto-refresh.
 
-The default value is `0`.
+The default value is `true`.
 
 ### JavaScript
 
@@ -576,7 +575,7 @@ If the brownie option is set to either `always` or `manual` then your client app
 
 #### wabs-brownie
 
-Set the brownie mode within the page to either “manual” or “always” using `<meta name=“wabs-brownie” content=“manual”>` or `<meta name=“wabs-brownie” content=“always”>`
+Set the brownie mode within the page to either "manual" or "always" using `<meta name="wabs-brownie" content="manual">` or `<meta name="wabs-brownie" content="always">`
 
 ### JavaScript
 
@@ -615,7 +614,7 @@ byu.brownie.get('user'); // get the brownie value associated with the "user" key
 ```
 
 ##### navigateTo( url, [, target ] )
-A function to navigate to a URL and if that URL is a legacy app then send the legacy app the brownie data. This function will automatically be called if the brownie mode is set to “always” and a link is clicked that points to a legacy application.
+A function to navigate to a URL and if that URL is a legacy app then send the legacy app the brownie data. This function will automatically be called if the brownie mode is set to "always" and a link is clicked that points to a legacy application.
 
 **Parameters**
 
