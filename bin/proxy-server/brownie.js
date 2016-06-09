@@ -1,11 +1,8 @@
 "use strict";
-/**
- * This file defines REST endpoint handler functions related to the brownie.
- */
 const bodyParser    = require('body-parser');
 const chalk         = require('chalk');
-const crypt         = require('../brownie/crypt');
 const noop          = require('./noop');
+const request       = require('../request');
 const services      = require('./services');
 
 // define the urlEncoded parser middleware that will be used to parse POST data from the c-framework
@@ -17,21 +14,10 @@ const cFrameworkFormParser = bodyParser.urlencoded({
 // define the json parser
 const jsonParser = bodyParser.json();
 
-// define the brownie integration levels
-const levels = ['none', 'manual', 'always'];
-Object.freeze(levels);
-
-
 module.exports = Brownie;
 
 function Brownie(config) {
     var crypto;
-
-    console.log('Brownie mode: ' + config.brownie);
-
-    // validate brownie configuration
-    if (levels.indexOf(config.brownie) === -1) throw Error('Brownie configuration value must be one of: ' + levels.join(', '));
-    if (typeof config.brownieUrl !== 'string') throw Error('BrownieUrl must be a string.');
 
     // if not using the brownie then return noop middleware
     if (config.brownie === 'none') return noop;
@@ -50,7 +36,7 @@ function Brownie(config) {
             encode(crypto, req, res, next);
         } else if (req.method === 'GET' && req.query.hasOwnProperty('wabs-brownie')) {
             let brownie = req.query['wabs-brownie'];
-            let sessionKey = req.cookies.hasOwnProperty('brownie') ? req.cookies.brownie : null;
+            let sessionKey = req.hasOwnProperty('cookies') && req.cookies.hasOwnProperty('brownie') ? req.cookies.brownie : null;
             crypto.decode(brownie, sessionKey)
                 .then(function (decodedBrownie) {
                     req.wabs.brownie = decodedBrownie;
@@ -65,32 +51,50 @@ function Brownie(config) {
     };
 }
 
-Brownie.options = {
-    brownie: {
-        alias: 'b',
-        description: 'Specify the level of brownie support. Valid values include "' + levels.join('", "') + '". \n\n' +
-            chalk.bold.green('none') + ': Will not provide brownie support.\n\n' +
-            chalk.bold.green('manual') + ': Will provide brownie data and the library but will not automatically ' +
-            'trigger brownie data transfer when navigating to a legacy application.\n\n' +
-            chalk.bold.green('always') + ': Will provide full brownie support and will automatically cause links that ' +
-            'navigate to legacy applications to send that information in a way that the legacy application can ' +
-            'capture it.',
-        type: String,
-        transform: (v) => v.toLowerCase(),
-        validate: (v) => levels.indexOf(v.toLowerCase()) !== -1,
-        defaultValue: 'always',
-        env: 'WABS_BROWNIE',
-        group: 'brownie'
-    },
-    brownieUrl: {
-        alias: 'u',
-        description: 'The URL to use as a web service to encode and decode brownie data.',
-        type: String,
-        defaultValue: 'https://lambda.byu.edu/ae/prod/brownie-dumper/cgi/brownie-dumper.cgi/json', 
-        env: 'WABS_BROWNIE_URL',
-        group: 'brownie'
-    }
-};
+function crypt(serviceUrl) {
+    var factory = {};
+
+    /**
+     * Decode a brownie from the C-framework.
+     * @param {string} encodedBrownie
+     * @param {string} sessionKey
+     * @returns {Promise}
+     */
+    factory.decode = function(encodedBrownie, sessionKey) {
+        var options = {
+            url: serviceUrl + "?sessionKey=" + sessionKey + '&brownie=' + encodedBrownie,
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        };
+        return request(options).then(getDecodedBrownieFromResponse);
+    };
+
+    /**
+     * Encode a brownie for the C-framework.
+     * @param {string} encodedBrownie The original encoded brownie that the C-framework sent.
+     * @param {string} sessionKey The session key.
+     * @param {object} data The data to add to the brownie.
+     * @returns {Promise}
+     */
+    factory.encode = function(encodedBrownie, sessionKey, data) {
+        var body = Object.assign({ brownie: encodedBrownie, sessionKey: sessionKey }, data);
+        var options = {
+            url: serviceUrl,
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body)
+        };
+
+        return request(options).then(getDecodedBrownieFromResponse);
+    };
+
+    return factory;
+}
 
 function decode(crypt, req, res, next) {
 
@@ -119,7 +123,7 @@ function decode(crypt, req, res, next) {
             });
             res.redirect(url);
 
-        // we don't need to redirect for oauth so we can modify the request
+            // we don't need to redirect for oauth so we can modify the request
         } else {
             crypt.decode(brownie, sessionKey)
                 .then(function (decodedBrownie) {
@@ -166,4 +170,39 @@ function encode(crypt, req, res, next) {
                 next(err);
             });
     });
+}
+
+function getDecodedBrownieFromResponse(response) {
+    var data = JSON.parse(response.body)['Brownie-dumperService'];
+    var result = {};
+
+    // validate the response structure
+    if (!data.request || data.request.status !== 200 || !data.response) {
+        throw Error('REST response has unexpected structure');
+    }
+
+    // iterate through the response properties to build the new decoded brownie object
+    if (data.response.properties) {
+        data.response.properties.forEach(function(property) {
+            var value = property.value;
+
+            //convert strings to the type specified
+            if (typeof value === 'string') {
+                switch (property.type) {
+                    case 'DECIMAL':
+                        value = parseFloat(value) || null;
+                        break;
+                    case 'INTEGER':
+                        value = parseInt(value) || null;
+                        break;
+                }
+            }
+
+            //store the property on the result
+            result[property.name] = value;
+        });
+    }
+
+    // return the result
+    return result;
 }

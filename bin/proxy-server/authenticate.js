@@ -16,19 +16,16 @@ const authStage = {
 };
 
 function Authenticate(config) {
-    console.log('Authenticate mode: ' + config.authenticate);
 
-    if (config.authenticate === 'none') return noop;
+    // if no oauth configuration properties are set then send a no-op middleware function
+    if (!config.hasOwnProperty('consumerKey') && !config.hasOwnProperty('consumerSecret') && !config.hasOwnProperty('encryptSecret')) return noop;
 
     // check that each required property is set
     ['consumerKey', 'consumerSecret', 'encryptSecret', 'wellKnownUrl'].forEach(function(key) {
         if (!config.hasOwnProperty(key)) throw Error('Missing required configuration setting: ' + camel.to('-', key));
     });
 
-    const cKey = config.consumerKey;
-    const cSecret = config.consumerSecret;
     const eSecret = config.encryptSecret;
-    const wkUrl = config.wellKnownUrl;
     const oauth = byuOauth(config.consumerKey, config.consumerSecret, config.wellKnownUrl);
 
     function getRedirectUrl(req, endpoint) {
@@ -69,16 +66,16 @@ function Authenticate(config) {
             if (!req.query.redirect) {
                 res.sendStatusView(400, null, 'Required query parameter "redirect" not provided.');
 
-            // CAS verified login and refresh token exists
+                // CAS verified login and refresh token exists
             } else if (req.query.ticket && auth && auth.refreshToken) {
                 let redirectUrl = getRedirectUrl(req, 'oauth-code');
                 refresh(req, res, next, oauth, auth.accessToken, auth.refreshToken, redirectUrl, eSecret);
 
-            // CAS verified login but no refresh token
+                // CAS verified login but no refresh token
             } else if (req.query.ticket) {
                 login(req, res, next, oauth, getRedirectUrl(req, 'oauth-code'));
 
-            // CAS did not verify login
+                // CAS did not verify login
             } else {
                 let url = encodeURIComponent(getRedirectUrl(req, 'cas?redirect=' + req.query.redirect));
                 res.redirect('https://cas.byu.edu/cas/login?service=' + url);
@@ -96,7 +93,7 @@ function Authenticate(config) {
         } else if (req.wabs.endpoint === 'auth/oauth-refresh' && req.query.access && req.query.code) {
             let refreshToken = decrypt(eSecret, req.query.code);
             gateway(req, res, next, oauth, req.query.access, refreshToken, eSecret);
-            
+
         // handle a revoke command
         } else if (req.wabs.endpoint === 'auth/oauth-revoke') {
             if (!req.query.access && !req.query.refresh) {
@@ -112,135 +109,9 @@ function Authenticate(config) {
                     .catch(next);
             }
 
-        // verify authentication with app root load
-        } else if (!req.wabs.endpoint && req.wabs.inject && req.wabs.authMode === 'always') {
-
-            // authorization was denied
-            if (req.cookies['wabs-auth-stage'] === authStage.notAuthorized) {
-                res.clearCookie('wabs-auth-stage');
-                res.sendStatusView(401, 'Not Authorized');
-
-            // authorized
-            } else if (req.cookies['wabs-auth-stage'] === authStage.authorized) {
-                res.clearCookie('wabs-auth-stage');
-                next();
-
-            // authentication and authorization needed
-            } else {
-                let url = encodeURIComponent(getRedirectUrl(req, 'cas?redirect=' + req.url));
-                res.redirect('https://cas.byu.edu/cas/login?service=' + url + '&gateway=true');
-            }
-
         } else {
             next();
         }
-    };
-}
-
-Authenticate.options = {
-    authenticate: {
-        alias: 'a',
-        description: 'Specify the level of authentication support. Valid values include "none", "manual", "always". \n\n' +
-            chalk.bold.green('none') + ': Will not provide authentication support and all other authentication ' +
-            'options will be ignored.\n\n' +
-            chalk.bold.green('manual') + ': Will provide authentication support that must be manually triggered using ' +
-            'the global javascript functions ' + chalk.italic('byu.auth.login') + ', ' + chalk.italic('byu.auth.logout') +
-            ', and ' + chalk.italic('byu.auth.refresh') + '.\n\n' +
-            chalk.bold.green('always') + ': Will force the user to be logged in to use any part of the application.',
-        type: String,
-        transform: (v) => v.toLowerCase(),
-        validate: (v) => ['none', 'manual', 'always'].indexOf(v.toLowerCase()) !== -1,
-        defaultValue: 'none',
-        env: 'WABS_AUTHENTICATE',
-        group: 'auth'
-    },
-    consumerKey: {
-        alias: 'i',
-        description: 'The consumer key from the application defined in WSO2. This value must be set if the ' +
-            chalk.italic('--authenticate') + ' option is set to either "manual" or "always".',
-        type: String,
-        env: 'WABS_CONSUMER_KEY',
-        group: 'auth'
-    },
-    consumerSecret: {
-        alias: 't',
-        description: 'The consumer secret from the application defined in WSO2. This value must be set if the ' +
-            chalk.italic('--authenticate') + ' option is set to either "manual" or "always".',
-        type: String, 
-        env: 'WABS_CONSUMER_SECRET',
-        group: 'auth'
-    },
-    encryptSecret: {
-        alias: 'n',
-        description: 'The encryption secret to use to encrypt and decrypt the refresh token that is sent to the client. ' +
-            'If this value is not specified then the encrypt secret will be randomly generated. Note that if you have ' +
-            'clustered this server that you\'ll want to specify the same secret for each.',
-        type: String, 
-        env: 'WABS_ENCRYPT_SECRET',
-        group: 'auth'
-    },
-    host: {
-        alias: 'h',
-        description: 'The full host name including protocol and port number that will be used to reach this server. ' +
-        'If not specified then the server will automatically attempt to determine this information, but if the ' +
-        'server is behind a proxy then it will be incorrect.',
-        type: String,
-        defaultValue: '',
-        env: 'WABS_HOST',
-        group: 'auth'
-    },
-    wellKnownUrl: {
-        alias: 'k',
-        description: 'The well known URL to use to get authentication information from.',
-        type: String,
-        defaultValue: 'https://api.byu.edu/.well-known/openid-configuration', 
-        env: 'WABS_WELL_KNOWN_URL',
-        group: 'auth'
-    }
-};
-
-function analyzeOauthError(data) {
-    var description;
-    var title;
-    var url = '';
-
-    switch(data.error) {
-        case 'invalid_request':
-            title = 'Invalid Request';
-            description = 'The OAuth request is malformed.';
-            break;
-        case 'invalid_client':
-            title = 'Invalid Client';
-            description = 'OAuth client authentication failed.';
-            break;
-        case 'invalid_grant':
-            title = 'Invalid OAuth Token';
-            description = 'The OAuth token is invalid, expired, or revoked.';
-            break;
-        case 'unauthorized_client':
-            title = 'Unauthorized Client';
-            description = 'The client is not authorized to use the authorization grant type.';
-            break;
-        case 'unsupported_grant_type':
-            title = 'Unsupported Grant Type';
-            description = 'The server does not support this grant type.';
-            break;
-        case 'invalid_scope':
-            title = 'Invalid Scope';
-            description = 'The requested scope is invalid.';
-            break;
-        default:
-            title = 'Unexpected Error';
-            description = data.error;
-    }
-
-    if (data.error_description) description = data.error_description;
-    if (data.error_uri) url = data.error_uri;
-
-    return {
-        title: title,
-        description: description,
-        url: url
     };
 }
 
@@ -270,7 +141,7 @@ function code(req, res, next, oauth, redirectURI, eSecret) {
     if (!state) {
         res.sendStatusView(400);
 
-    // if a code wasn't provided then access was denied
+        // if a code wasn't provided then access was denied
     } else if (!req.query.code) {
         res.cookie('wabs-auth-stage', authStage.notAuthorized);
         res.redirect(state.redirect);

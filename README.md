@@ -1,19 +1,17 @@
 # byu-wabs
 
-The official BYU **W**eb **A**uthentication **B**ootstrap **S**erver.
+The official BYU **W**eb **A**pplication **B**ootstrap **S**erver.
 
-This application acts as either a **static file server** or a **proxy server** and adds functionality to client web applications to 1) integrate authentication, 2) facilitate OAuth, and 3) provide interoperability with legacy code (via brownies).
+This application runs a **proxy server** that adds functionality to client web applications to integrate authorization via OAuth and to provide interoperability with legacy code (via brownies).
 
 ## Quick Links
 
 * [Installation](#installation)
-* [Authentication and Authorization](#authentication-and-authorization)
-* [Starting the Server](#starting-the-server)
-* [Using as Express Middleware](#using-as-express-middleware)
-* [Server Options](#server-options)
-* [Authentication / Authorization Options](#authentication--authorization-options)
+* [Starting the Proxy Server](#starting-the-proxy-server)
+* [Proxy Server Options](#server-options)
+* [Configuration via Environment Variables](#configuration-via-environment-variables)
+* [Authorization Options](#authorization-options)
 * [Brownie Options](#brownie-options)
-* [Cache Options](#cache-options)
 * [Client Application Authentication / Authorization Tools](#client-application-authentication--authorization-tools)
 * [Client Application Brownie Tools](#client-application-brownie-tools)
 * [Client Events](#client-events)
@@ -21,21 +19,11 @@ This application acts as either a **static file server** or a **proxy server** a
 
 ## Installation
 
-If you want to run this as a server, it is recommended that this node package be installed globally. If you only care about the middleware portion then you can install locally.
-
-**Local Install**
-
-```sh
-npm install byu-wabs
-```
-
-**Global Install**
-
 ```sh
 npm install -g byu-wabs
 ```
 
-## Starting the Server
+## Starting the Proxy Server
 
 The server can be started from the command line and is configured through command line arguments. For a full listing of arguments and how they work, execute the following command from the command line:
 
@@ -52,52 +40,11 @@ byu-wabs [OPTIONS]...
 Or a more specific example:
 
 ```sh
-byu-wabs --port 9000 --authenticate manual --consumer-key cOnsUmerKey --consumer-secret cOnsUmerSecrEt --encrypt-secret enCRytpSecreT --brownie always
+byu-wabs --port 9000 --consumer-key cOnsUmerKey --consumer-secret cOnsUmerSecrEt --encrypt-secret enCRytpSecreT --brownie always
 ```
 
 For a list of options and what they do, please use `byu-wabs --help` from the command line.
 
-## Authentication and Authorization
-
-For the Web Application Bootstrap Server, authentication and authorization are essentially inseparable. This is because the user must authorize (through OAuth) the application to act on the user's behalf. If a user is authenticated but the application is not authorized then the application can do nothing.
-
-## Start the Server with JavaScript
-
-If you want to start the server from within your code you can require the package and call it as a function. The function takes a configuration object as an optional parameter.
-
-The configuration object takes properties that are the same as the options provided through the command line. The only difference is that the property names are camelcase instead of using dashes. For example: `brownie-url` would be `brownieUrl` as a configuration option.
-
-```js
-var server = require('byu-wabs');
-server({});
-```
-
-## Using as Express Middleware
-
-It is possible to use the core functionality of this package as a piece of middleware for any server that accepts express middleware.
-
-The following example shows how to implement it as express middleware:
-
-```js
-var express = require('express');
-var wabs = require('byu-wabs');
-var app = express();
-
-var config = {
-    authenticate: 'manual',
-    consumerKey: 'fooBar',
-    consumerSecret: 'barBaz',
-    encryptSecret: 'fooBaz',
-    src: __dirname + '/..:/'
-}
-
-// here we tell express to user the wabs middleware
-app.use(wabs.middleware(config));
-
-app.listen(3000, function () {
-  console.log('Example app listening on port 3000!');
-});
-```
 ## Configuration via Environment Variables
 
 Some options can be configured via the setting of an environment variable. These environment variables can alo be passed
@@ -107,7 +54,7 @@ defined in development.env.
 Options specified in an --env-file will always override settings in the normal environment, and command-line arguments
 will always override the env file.
 
-## Server Options
+## Proxy Server Options
 
 ### development
 
@@ -171,13 +118,12 @@ byu-wabs --port 80
 
 ### src
 
-Specify a source to serve files from. This can be either a file system path or the URL for another server to proxy requests for. You can also optionally specify the endpoint from which those resources should be available by specifying the path followed by ":" followed by the endpoint. If the endpoint is not specified then "/" is assumed. In short, the src should look like `[source]:[endpoint]:[cache]` where *source* is where to get the content, *endpoint* is the URL endpoint that will load from that source (defaulting to `/`), and *cache* will specify whether to cache that directory (ignored when acting as a proxy).
+Specify the URL to proxy requests for. Optionally you can also specify the route that will proxy to that URL by using a colon `:` followed by the route path.
 
 * **alias:** s
 * **name:** src
 * **type:** String
 * **multiple** true
-* **default:** `./:/`
 * **environment variable:** `WABS_SRC`
 
 **Example: Proxy with Default Endpoint**
@@ -192,73 +138,21 @@ byu-wabs -s http://someserver.com/
 byu-wabs --src ./src-directory
 ```
 
-**Example: Multiple Sources with Custom Endpoints**
+**Example: Multiple Sources with Routes**
 
-This example will cause any requests to `/components` to be mapped to the current working directory plus `./bower-components` folder. For example: `http://localhost/components/file.js` could server the file from `/var/www/bower-components/file.js`.
-
-This example will also direct any requests to `/proxy` to `http://someserver.com`. For example: `http://localhost/proxy/file.js` would get the file from `http://someserver.com/file.js`.
+This example will cause any requests to `/beta` or a sub route (example: `/beta/foo/bar`) will proxy for `http://beta.com`. Any other routes that do not start with `/beta` will proxy for `http://alpha.com`.
 
 ```sh
---src ./src:/ --src ./bower-components:/components --src http://someserver.com/:/proxy
+--src http://alpha.com/:/ --src http://beta.com/:/beta
 ```
 
-### status-view
+## Authorization Options
 
-The file path to the html file that should be used as the status template. The status template will be used to show generic status pages. Text with `{{status}}`, `{{title}}`, `{{body}}`, and `{{id}}` will be replaced with the status code, title, body, and request ID respectively. If the server is acting as a proxy then status views will not display, instead the response from the proxied server will be sent.
-
-* **alias:** v
-* **name:** statusView
-* **type:** String
-* **environment variable:** `WABS_STATUS_VIEW`
-
-**Examples**
-
-```sh
-byu-wabs -v ./views/status.html
-```
-
-```sh
-byu-wabs --status-view /var/www/views/status.html
-```
-
-## Authentication / Authorization Options
-
-If you are interested in having this server facilitate authentication and authorization (via OAuth) then you must set the authenticate option to either `manual` or `always`.
-
-If set to either `manual` or `always` then all other authentication / authorization options are required (except where a default value exist for the option). Also in these modes the client application will automatically have access to additional tools. For details on these tools see the section titled [Client Application Authentication / Authorization Tools](#client-application-authentication--authorization-tools).
-
-If set to `none` then all other authentication options are ignored and the client application will not have access to the [Client Application Authentication / Authorization Tools](#client-application-authentication--authorization-tools).
-
-### authenticate
-
-Specify the level of authentication support. Valid values include `none`, `manual`, `always`.
-
-`none` - Will not provide authentication support and all other authentication options will be ignored. `manual` - Will provide authentication support that must be manually triggered using the global javascript functions byu.auth.login, byu.auth.logout, and byu.auth.refresh.
-`always` - Will force the user to be logged in to use any part of the application.
-
-* **alias:** a
-* **name:** authenticate
-* **type:** String
-* **default:** `none`
-* **environment variable:** `WABS_AUTHENTICATE`
-
-**Examples**
-
-```sh
-byu-wabs -a none
-```
-
-```sh
-byu-wabs --authenticate manual -i conSumerKEy -t ConsUmerSecreT -n eNcrYptioNsecrET
-```
-
-```sh
-byu-wabs --authenticate always --consumer-key conSumerKEy --consumer-secret ConsUmerSecreT --encrypt-secret eNcrYptioNsecrET
-```
+If you are interested in having this server facilitate authentication and authorization (via OAuth) then you must set the `--consumer-key` `--consumer-secret` and `--encrypt-secret` options. Enabling authorization will enable [Client Application Authorization Tools](#client-application-authentication--authorization-tools).
 
 ### consumer-key
 
-The consumer key from the application defined in WSO2. This value must be set if the --authenticate option is set to either `manual` or `always`.
+The consumer key from the application defined in WSO2.
 
 * **alias:** i
 * **name:** consumerKey
@@ -267,7 +161,7 @@ The consumer key from the application defined in WSO2. This value must be set if
 
 ### consumer-secret
 
-The consumer secret from the application defined in WSO2. This value must be set if the --authenticate option is set to either `manual` or `always`.
+The consumer secret from the application defined in WSO2.
 
 * **alias:** t
 * **name:** consumerSecret
@@ -276,7 +170,7 @@ The consumer secret from the application defined in WSO2. This value must be set
 
 ### encrypt-secret
 
-The encryption secret to use to encrypt and decrypt the refresh token that is sent to the client. If this value is not specified then the encrypt secret will be randomly generated. Note that if you have clustered this server that you’ll want to specify the same secret for each.
+The encryption secret to use to encrypt and decrypt the refresh token that is sent to the client.
 
 * **alias:** n
 * **name:** encryptSecret
@@ -352,112 +246,19 @@ byu-wabs -u http://somewhere.com/brownie-service
 byu-wabs --brownie-url http://somewhere.com/brownie-service
 ```
 
-## Cache Options
+## Client Application Authorization Tools
 
-It is possible to cache files to provide fast load times for requests. These options deal with caching and keeping the cache fresh.
-
-### cache
-
-The cache size in megabytes (0 to 100). Setting this value to zero will disable caching. Proxied requests will not be cached.
-
-* **alias:** c
-* **name:** cache
-* **type:** Number
-* **default:** `50`
-* **environment variable:** `WABS_CACHE`
-
-### cache-ext
-
-A list of comma separated file extensions to include in cache.
-
-* **alias:** x
-* **name:** cacheExt
-* **type:** String
-* **default:** `html,htm,js,css`
-* **environment variable:** `WABS_CACHE_EXT`
-
-### cache-max
-
-The maximum file size in megabytes to allow into the cache.
-
-* **alias:** m
-* **name:** cacheMax
-* **type:** Number
-* **default:** `1`
-* **environment variable:** `WABS_CACHE_MAX`
-
-### watch
-
-If the src is pointing to a file system then this option is used to specify whether the file system should be watched for changes. It is recommended that for development this be set to true and for immutable production instances that it be set to false.
-
-* **alias:** w
-* **name:** watch
-* **type:** Boolean
-* **default:** `true`
-* **environment variable:** `WABS_WATCH`
-
-**Examples**
-
-```sh
-byu-wabs -w
-```
-
-```sh
-byu-wabs --watch
-```
-
-### watch-ignore
-
-An anymatch (https://www.npmjs.com/package/anymatch) pattern for paths to not watch.
-
-* **alias:** g
-* **name:** watchIgnore
-* **type:** String
-* **environment variable:** `WABS_WATCH_IGNORE`
-
-**Examples**
-
-```sh
-byu-wabs -g **/*.jpeg --watch-ignore **/*.jpg --watch-ignore **/*.png
-```
-
-### watch-polling
-
-If you want to watch files through a network share or through a mounted file system then you may need to enable polling. Setting this option will specify the number of milliseconds to use as the file system polling rate.
-
-* **alias:** W
-* **name:** watch-polling
-* **type:** Number
-* **default:** `0`
-* **environment variable:** `WABS_WATCH_POLLING`
-
-**Examples**
-
-```sh
-byu-wabs -W 300
-```
-
-```sh
-byu-wabs --watch-polling 300
-```
-
-## Client Application Authentication / Authorization Tools
-
-If the authenticate option is set to either `manual` or `always` then your client application will automatically get access to a few additional tools:
+If the [authorization options](#authorization-options) are set then your client application will automatically get access to a few additional tools:
 
 ### HTML Meta Tags
 
-You can add meta tags to your HTML document that will alter how the server interacts with your file.
-
-#### wabs-auth
-
-Set the authenticate mode within the HTML page to either `manual` or `always` using ```<meta name="wabs-auth" content="manual">``` or ```<meta name="wabs-auth" content="always">```
+You can add meta tags to your HTML document that will alter how the proxy server interacts with your file.
 
 #### wabs-auth-refresh
 
-Set the authentication auto refresh using ```<meta name="wabs-auth-refresh" content="true">```.
+Set the authorization auto refresh using ```<meta name="wabs-auth-refresh" content="true">```.
 
-- If the content value is `0` or `false` then authentication auto refresh will be disabled.
+- If the content value is `0` or `false` then authorization auto refresh will be disabled.
 - Any other value will enable auto-refresh.
 
 The default value is `true`.
@@ -468,7 +269,7 @@ Your client application will have access to two global objects:
 
 #### byu.user
 
-An `Object` with data about the authenticated user. This information is provided through OAuth when the user authenticates and authorizes. If the user is not authenticated and has authorized then this object will have a value of `null`.
+An `Object` with data about the authenticated user. This information is provided through OAuth when the user authenticates and authorizes the application. If the user is not authenticated or authorized the application then this object will have a value of `null`.
 
 #### byu.auth
 
@@ -486,15 +287,14 @@ var x = byu.auth.accessToken;
 
 ##### autoRefresh
 
-The authentication auto refresh interval. If the number is zero then authentication auto refresh will be disabled. If the number is positive then the auto refresh will occur number of minutes specified. If the number is negative then the refresh will occur that many number of minutes before the OAuth access token expires.
+Whether the access token gained through user authentication and application authorization should be refreshed automatically when it expires.
 
-The default value is `0`.
+The default value is `true`.
 
 **Example**
 
 ```js
-var prevRefresh = byu.auth.autoRefresh;
-byu.auth.autoRefresh = -5;      // refresh the access token 5 minutes before expiration
+byu.auth.autoRefresh = false;      // disable auto refresh
 ```
 
 ##### expired
