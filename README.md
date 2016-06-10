@@ -6,44 +6,50 @@ This application runs a **proxy server** that adds functionality to client web a
 
 ## Quick Links
 
-* [Installation](#installation)
+* [Quick Start](#quick-start)
 * [Starting the Proxy Server](#starting-the-proxy-server)
-* [Proxy Server Options](#server-options)
 * [Configuration via Environment Variables](#configuration-via-environment-variables)
+* [Server Options](#server-options)
 * [Authorization Options](#authorization-options)
 * [Brownie Options](#brownie-options)
-* [Client Application Authentication / Authorization Tools](#client-application-authentication--authorization-tools)
+* [Client Application Authorization Tools](#client-application-authorization-tools)
 * [Client Application Brownie Tools](#client-application-brownie-tools)
 * [Client Events](#client-events)
 * [Web Services](#web-services)
 
-## Installation
+## Quick Start
 
-```sh
-npm install -g byu-wabs
-```
+1. Install the application
 
-## Starting the Proxy Server
+    ```sh
+    npm install -g byu-wabs
+    ```
 
-The server can be started from the command line and is configured through command line arguments. For a full listing of arguments and how they work, execute the following command from the command line:
+2. Install a static file server. You can use any file server you would like, but some easy options to start with include:
 
-```sh
-byu-wabs --help
-```
+    - [BrowserSync](https://browsersync.io/)
+    - [SimpleHTTPServer](https://docs.python.org/2/library/simplehttpserver.html) (requires Python 2.7)
+    - [http-server](https://www.npmjs.com/package/http-server)
 
-The help will inform you that you need to execute the command with options, in the following format:
+3. Start the static file server.
 
-```sh
-byu-wabs [OPTIONS]...
-```
+4. Start the WABS Server.
 
-Or a more specific example:
+    The WABS server is best started from the command line. For command line documentation, you can type:
 
-```sh
-byu-wabs --port 9000 --consumer-key cOnsUmerKey --consumer-secret cOnsUmerSecrEt --encrypt-secret enCRytpSecreT --brownie always
-```
+    ```sh
+    $ byu-wabs --help
+    ```
 
-For a list of options and what they do, please use `byu-wabs --help` from the command line.
+    The most common usage options for starting WABS should be something like the following, but there are many other options that you can learn about through the command line help or through this readme file ([Server Options](#server-options), [Authorization Options](#authorization-options), and [Brownie Options](#brownie-options)).
+
+    ```sh
+    $ byu-wabs -s http://localhost:3000 -i cOnsUmerKey -t cOnsUmerSecrEt -n enCRytpSecreT
+    ```
+
+5. Start a caching server
+
+    If you are running WABS in production, you should be running WABS behind a caching proxy for significant performance gains.
 
 ## Configuration via Environment Variables
 
@@ -54,7 +60,7 @@ defined in development.env.
 Options specified in an --env-file will always override settings in the normal environment, and command-line arguments
 will always override the env file.
 
-## Proxy Server Options
+## Server Options
 
 ### development
 
@@ -142,7 +148,7 @@ byu-wabs --src http://alpha.com/:/ --src http://beta.com/:/beta
 
 ## Authorization Options
 
-If you are interested in having this server facilitate authentication and authorization (via OAuth) then you must set the `--consumer-key` `--consumer-secret` and `--encrypt-secret` options. Enabling authorization will enable [Client Application Authorization Tools](#client-application-authentication--authorization-tools).
+If you are interested in having this server facilitate authentication (via CAS) and authorization (via OAuth) then you must set the `--consumer-key` `--consumer-secret` and `--encrypt-secret` options. Enabling authorization will enable [Client Application Authorization Tools](#client-application-authorization-tools).
 
 ### consumer-key
 
@@ -182,7 +188,7 @@ The full host name including protocol and port number that will be used to reach
 
 ### well-known-url
 
-The well known URL to use to get authentication information from.
+The well known URL to use to get authorization information from.
 
 * **alias:** k
 * **name:** wellKnownUrl
@@ -281,7 +287,7 @@ var x = byu.auth.accessToken;
 
 ##### autoRefresh
 
-Whether the access token gained through user authentication and application authorization should be refreshed automatically when it expires.
+Whether the access token gained through user authorization should be refreshed automatically when it expires.
 
 The default value is `true`.
 
@@ -491,9 +497,9 @@ document.addEventListener('byu-wabs-ready', function(e) {
 });
 ```
 
-### Authentication / Authorization Events
+### Authorization Events
 
-These events are specific to the authentication / authorization mode and will only fire if the mode is set to either `manual` or `always`.
+These events will only fire if the `--consumer-key`, `--consumer-secret`, and `--encrypt-secret` options are set when starting WABS.
 
 #### byu-wabs-auth-auto-refresh
 
@@ -507,7 +513,7 @@ document.addEventListener('byu-wabs-auth-auto-refresh', function(e) {
 
 #### byu-wabs-auth-error
 
-This event fires whenever the authentication / authorization was attempted but failed, including during a refresh. The event detail property will contain an Error object for the Error that occurred.
+This event fires whenever authorization was attempted but failed, including during a refresh. The event detail property will contain an Error object for the Error that occurred.
 
 ```js
 document.addEventListener('byu-wabs-auth-error', function(e) {
