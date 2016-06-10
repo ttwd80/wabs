@@ -132,18 +132,12 @@ Specify the URL to proxy requests for. Optionally you can also specify the route
 byu-wabs -s http://someserver.com/
 ```
 
-**Example: Local Path with Default Endpoint**
-
-```sh
-byu-wabs --src ./src-directory
-```
-
 **Example: Multiple Sources with Routes**
 
 This example will cause any requests to `/beta` or a sub route (example: `/beta/foo/bar`) will proxy for `http://beta.com`. Any other routes that do not start with `/beta` will proxy for `http://alpha.com`.
 
 ```sh
---src http://alpha.com/:/ --src http://beta.com/:/beta
+byu-wabs --src http://alpha.com/:/ --src http://beta.com/:/beta
 ```
 
 ## Authorization Options
