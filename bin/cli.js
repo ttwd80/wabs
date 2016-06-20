@@ -108,6 +108,7 @@ const ServerOptions = {
             'adding a colon (:) after the web server followed by the endpoint path.\n\n' +
         chalk.bold('Example:') + '--src http://someserver.com --src http://server.org:/foo',
         type: String,
+        required: true,
         multiple: true,
         env: 'WABS_SRC',
         group: 'server'
