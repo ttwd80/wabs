@@ -10,6 +10,6 @@ if (require.main === module) {
     Command.evaluate();
 } else {
     module.exports = function (config) {
-        return Command.execute('server', config);
+        return Command.execute('proxy', config);
     };
 }
