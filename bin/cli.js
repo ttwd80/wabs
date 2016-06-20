@@ -114,6 +114,8 @@ const ServerOptions = {
     }
 };
 
+Command.settings.envFileOption = true;
+
 Command.defaultCommand = 'proxy';
 
 Command.define('proxy', Server, {
