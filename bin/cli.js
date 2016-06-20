@@ -224,3 +224,8 @@ Command.define('proxy', Server, {
         }
     ]
 });
+
+Command.define('version', () => {
+    const data = require(__dirname + '/../package.json');
+    console.log(data.version);
+}, { breif: 'Get the current version of WABS' });
