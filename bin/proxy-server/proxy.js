@@ -72,6 +72,7 @@ module.exports = function(config) {
         }
 
         if (match) {
+            req.url = req.url.substr(match.endpoint.length);
             append(req, res, function(err) {
                 if (err) return next(err);
                 proxies[match.endpoint].web(req, res);
@@ -171,7 +172,7 @@ function getEndpoints(config) {
         console.log(chalk.bold('[SRCMAP]') + ' : ' + endpoint + ' => ' + source);
 
         // store the endpoint
-        endpoints.push({ endpoint: endpoint, source: source, length: endpoint.split('/').length });
+        endpoints.push({ endpoint: endpoint, source: source, length: endpoint.replace(/\/+$/, '').split('/').length });
     });
 
     // sort endpoints - longest paths first
