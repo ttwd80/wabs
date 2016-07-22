@@ -21,7 +21,7 @@ function Server(config) {
     app.use(wabs(config));
     app.use(health(config));
     app.use(wabsScript(config));
-    app.use(cookieParser());
+    app.use(config.hasOwnProperty('encryptSecret') ? cookieParser(config.encryptSecret) : cookieParser());
     app.use(brownie(config));
     app.use(authenticate(config));
     app.use(proxy(config));
