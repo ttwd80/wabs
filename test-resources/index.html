@@ -15,10 +15,43 @@
     <div><strong>Logged In User:</strong></div>
     <pre style="border: 1px solid #DDD; border-radius: 3px; background-color: #EEE; padding: 5px 10px; margin-top: 2px;"></pre>
 
+    <div><strong>Expires:</strong> <span id="expires"></span></div>
+    <div><strong>Auto Refresh:</strong> <span id="autoRefresh"></span></div><br>
+
+    <div><strong>Events:</strong></div>
+    <ol id="events" style="margin-top: 0"></ol>
+
+
     <script>
-        setTimeout(function() {
+
+        setInterval(function() {
+            var running = Math.round(byu.auth.expires / 1000);
+
+            var hours = Math.floor(running / 3600);
+            running -= hours * 3600;
+
+            var minutes = Math.floor(running / 60);
+            running -= minutes * 60;
+            if (minutes < 10) minutes = '0' + minutes;
+
+            var seconds = running;
+            if (seconds < 10) seconds = '0' + seconds;
+
+            document.querySelector('#autoRefresh').innerHTML = byu.auth.autoRefresh ? 'true': 'false';
+            document.querySelector('#expires').innerHTML = hours + ':' + minutes + ':' + seconds;
+        }, 250);
+
+        document.addEventListener('byu-wabs', function(e) {
+            var el = document.querySelector('#events');
+            el.innerHTML +=
+                '<li>[' + new Date().toUTCString() + '] <strong>' + e.detail.name + ':</strong>' +
+                //' <pre>' + JSON.stringify(e.detail.data, null, 2) + "</pre>" +
+                '</li>';
+        });
+
+        document.addEventListener('byu-wabs-auth-update', function() {
             document.querySelector('pre').innerHTML = JSON.stringify(byu.user, null, 2);
-        }, 0);
+        });
     </script>
 </body>
 </html>
