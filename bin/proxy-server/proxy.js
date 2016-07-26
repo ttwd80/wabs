@@ -3,19 +3,10 @@ const chalk             = require('chalk');
 const harmon            = require('harmon');
 const httpProxy         = require('http-proxy');
 const path              = require('path');
-const services          = require('./services');
 
 module.exports = function(config) {
     const endpoints = getEndpoints(config);
     const proxies = {};
-
-    // get a meta tag representing server configuration
-    const wabsDataMeta = getMetaTag('wabs-data', {
-        endpoint: config.endpoint,
-        auth: config.authenticate,
-        brownie: config.brownie,
-        services: services.get()
-    });
 
     // get a meta tag generator representing brownie state
     const brownieMeta = function(req, res) {
@@ -30,13 +21,11 @@ module.exports = function(config) {
     };
 
     // determine the script to add to the file
-    const wabScript = '<script src="' + config.endpoint + '/wabs.js?' +
-        (config.auth !== 'none' && config.brownie !== 'none' ? 'full' : config.auth !== 'none' ? 'auth' : 'brownie') +
-        '"></script>';
+    const wabScript = '<script src="' + config.endpoint + '/wabs.js"></script>';
 
     // define html injections
     const append = appendToElementMiddleware({
-        head: [ wabsDataMeta, brownieMeta ],
+        head: [ brownieMeta ],
         body: [ wabScript ]
     });
     
