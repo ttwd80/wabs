@@ -25,7 +25,10 @@ function WabsScript(config) {
                 time: Date.now()
             };
 
-            res.set('Content-type', 'text/javascript');
+            res.set('Content-Type', 'text/javascript');
+            res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.set('Pragma', 'no-cache');
+            res.set('Expires', '0');
             res.send(content + '(' + JSON.stringify(wabsData) + ')');
         } else {
             next();
