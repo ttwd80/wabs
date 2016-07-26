@@ -28,54 +28,173 @@ function Authenticate(config) {
     const eSecret = config.encryptSecret;
     const oauth = byuOauth(config.consumerKey, config.consumerSecret, config.wellKnownUrl);
 
-    function getRedirectUrl(req, endpoint) {
+    function getHost(req) {
         const rx = /^(https?)?(?::\/\/)?([a-z0-9\.\-]+)?(:\d+)?$/i;
         const receivedHost = rx.exec(req.get('host'));
         var host;
         var match;
-        var url;
         if (config.host && (match = rx.exec(config.host))) {
-            host = (match[1] ? match[1] : req.protocol) + '://' +
+            return (match[1] ? match[1] : req.protocol) + '://' +
                 (match[2] ? match[2] : receivedHost[2]) +
                 (match[3] ? match[3] : receivedHost[3] || '');
         } else {
-            host = req.protocol + '://' + receivedHost[2] + (receivedHost[3] || '')
+            return req.protocol + '://' + receivedHost[2] + (receivedHost[3] || '')
         }
-        url = host + config.endpoint + '/auth/';
+    }
+
+    function getRedirectUrl(req, endpoint) {
+        var url;
+        url = getHost(req) + config.endpoint + '/auth/';
         if (endpoint) url += endpoint;
         return url;
     }
 
     // register the web services defined by this middleware
     services.register('auth.cas', config.endpoint + '/auth/cas', 'The URL to direct CAS to to verify the CAS token. A redirect query parameter is required.');
-    services.register('oauth.login', config.endpoint + '/auth/oauth-login', 'The URL to use to log in to OAuth.');
+    services.register('oauth.authorize', config.endpoint + '/auth/oauth-authorize', 'The URL to use to log in to OAuth.');
     services.register('oauth.code', config.endpoint + '/auth/oauth-code', 'The URL to direct OAuth to that will receive the OAuth code.');
     services.register('oauth.refresh', config.endpoint + '/auth/oauth-refresh', 'The URL to call to attempt to refresh the OAuth token. This call requires that you include the query parameter: code (that has the value of the encoded refresh token).');
     services.register('oauth.revoke', config.endpoint + '/auth/oauth-revoke', 'The URL to call to revoke the OAuth token. This call requires that you include the query parameters: access (that has the value of the access token) and refresh (that has the value of the encoded refresh token).');
+
+    return function(req, res, next) {
+
+        // if not a GET then exit
+        if (req.method !== 'GET') return next();
+
+        // get a decoded copy of the cookie
+        const cookie = wabsAuthCookie(req, res, eSecret);
+        const auth = cookie.get();
+
+        // get the endpoint path if an auth path
+        const match = /^auth\/(.*)$/.exec(req.wabs.endpoint);
+        const endpoint = match ? match[1]: null;
+
+        // response from CAS gateway query
+        if (endpoint === 'cas-ticket') {
+            let finalDestinationUrl = req.query.redirect ? req.query.redirect : getHost(req) + '/';
+
+            // if no ticket then not authenticated with CAS
+            if (!req.query.ticket) {
+                res.redirect(finalDestinationUrl);
+
+            // if there is a ticket then authorize with oAuth
+            } else {
+                let url = getRedirectUrl(req, 'oauth-authorize?redirect=' + encodeURIComponent(finalDestinationUrl));
+                cookie.set(true, auth);
+                res.redirect(url);
+            }
+
+        // make a request to authorize with oAuth
+        } else if (endpoint === 'oauth-authorize') {
+            let redirectUrl = getRedirectUrl(req, 'oauth-code');
+            let state = { brownie: req.wabs.brownie };
+            if (req.query.redirect) state.redirect = req.query.redirect;
+            let stateEncoded = encodeURIComponent(JSON.stringify(state));
+
+            oauth.getCodeGrantAuthorizeUrl(redirectUrl, 'openid', stateEncoded)
+                .then(function(url) {
+                    res.redirect(url);
+                })
+                .catch(next);
+
+        // an oAuth code was received so verify the code now
+        } else if (endpoint === 'oauth-code') {
+            let state;
+
+            // get state information
+            if (req.query.state) {
+                try {
+                    state = decodeURIComponent(req.query.state);
+                    state = JSON.parse(state);
+                } catch (e) {
+                    state = {};
+                    console.error(e.stack);
+                }
+            }
+
+            // set default brownie and redirect state information
+            if (!state.brownie) state.brownie = null;
+            if (!state.redirect) state.redirect = getHost(req) + '/';
+
+            // if a code wasn't provided then access grant was denied
+            if (!req.query.code) {
+                cookie.set(auth.authenticated, null);
+                res.redirect(state.redirect);
+            } else {
+                let oAuthRedirect = getRedirectUrl(req, 'oauth-code');
+                oauth.getCodeGrantAccessToken(req.query.code, oAuthRedirect)
+                    .then(function (token) {
+                        cookie.set(true, token);
+                        res.redirect(state.redirect);
+                    })
+                    .catch(function (err) {
+                        console.error(err.stack);
+                        next(err);
+                    });
+            }
+
+        } else if (endpoint === 'oauth-refresh') {
+            if (!auth.accessToken || !auth.refreshToken) {
+                res.status(401).send('Unauthorized: oAuth tokens missing.')
+            } else {
+                oauth.refreshTokens(auth.accessToken, auth.refreshToken)
+                    .then(function (token) {
+                        cookie.set(!!token, token);
+                        if (!token) {
+                            res.status(401).send('Unauthorized: oAuth tokens invalid.');
+                        } else {
+                            res.status(200).send('OK: oAuth tokens successfully refreshed.');
+                        }
+                    })
+                    .catch(next);
+            }
+
+        } else if (endpoint === 'oauth-revoke') {
+            if (!auth.accessToken || !auth.refreshToken) {
+                res.status(400).send('Bad request: nothing to revoke.');
+            } else {
+                oauth.revokeTokens(auth.accessToken, auth.refreshToken)
+                    .then(() => res.status(200).send('OK: oAuth tokens revoked.'))
+                    .catch(next);
+            }
+
+        // if there is no cookie then check CAS for login
+        } else if (!cookie.exists()) {
+            cookie.set(false, null);
+            let url = encodeURIComponent(getRedirectUrl(req) + 'cas-ticket?redirect=' + getHost(req) + req.url);
+            res.redirect('https://cas.byu.edu/cas/login?gateway=true&service=' + url);
+
+        } else {
+            next();
+        }
+
+    };
 
     return function authenticate(req, res, next) {
 
         // if not a GET then exit
         if (req.method !== 'GET') return next();
 
+        // get a decoded copy of the cookie
+        const cookie = wabsAuthCookie(req, res, eSecret);
+
         // cas gateway request redirects to here
         if (req.wabs.endpoint === 'auth/cas') {
-            let auth = decodeWabAuthCookie(req, eSecret);
 
             // missing redirect in the query
             if (!req.query.redirect) {
                 res.sendStatusView(400, null, 'Required query parameter "redirect" not provided.');
 
-                // CAS verified login and refresh token exists
-            } else if (req.query.ticket && auth && auth.refreshToken) {
+            // CAS verified login and refresh token exists
+            } else if (req.query.ticket && cookie.refreshToken) {
                 let redirectUrl = getRedirectUrl(req, 'oauth-code');
-                refresh(req, res, next, oauth, auth.accessToken, auth.refreshToken, redirectUrl, eSecret);
+                refresh(req, res, next, oauth, cookie.accessToken, cookie.refreshToken);
 
-                // CAS verified login but no refresh token
+            // CAS verified login but no refresh token
             } else if (req.query.ticket) {
                 login(req, res, next, oauth, getRedirectUrl(req, 'oauth-code'));
 
-                // CAS did not verify login
+            // CAS did not verify login
             } else {
                 let url = encodeURIComponent(getRedirectUrl(req, 'cas?redirect=' + req.query.redirect));
                 res.redirect('https://cas.byu.edu/cas/login?service=' + url);
@@ -139,25 +258,18 @@ function code(req, res, next, oauth, redirectURI, eSecret) {
 
     // malformed request
     if (!state) {
+        res.clearCookie(cookieName);
         res.sendStatusView(400);
 
         // if a code wasn't provided then access was denied
     } else if (!req.query.code) {
-        res.cookie('wabs-auth-stage', authStage.notAuthorized);
+        setWabsAuthCookie(res, eSecret, true, null);
         res.redirect(state.redirect);
 
     } else {
         oauth.getCodeGrantAccessToken(req.query.code, redirectURI)
             .then(function(token) {
-                var auth = {
-                    accessToken: token.accessToken,
-                    expiresIn: token.expiresIn,
-                    openId: token.openId,
-                    refreshToken: encrypt(eSecret, token.refreshToken),
-                    status: ''
-                };
-                res.cookie('wabs-auth-stage', authStage.authorized);
-                res.cookie('wabs-auth', JSON.stringify(auth));
+                setWabsAuthCookie(res, eSecret, true, token);
                 res.redirect(state.redirect);
             })
             .catch(function(err) {
@@ -191,45 +303,6 @@ function decrypt(secret, text){
     var dec = decipher.update(text,'hex','utf8');
     dec += decipher.final('utf8');
     return dec;
-}
-
-/**
- * Encode the web auth cookie from an OAuth data object.
- * @param {object} res
- * @param {string} eSecret
- * @param {object} data
- * @returns {object} The encoded cookie object (before encoding)
- */
-function encodeWabAuthCookie(res, eSecret, data) {
-    var auth = {
-        accessToken: data.accessToken,
-        expiresIn: data.expiresIn,
-        openId: data.openId,
-        refreshToken: encrypt(eSecret, data.refreshToken),
-        scope: data.scope,
-        tokenType: data.tokenType,
-        status: ''
-    };
-    res.cookie('wabs-auth', JSON.stringify(auth));
-    return auth;
-}
-
-/**
- * Decode the web auth cookie.
- * @param {object} req
- * @param {string} [eSecret] Set this value to also decrypt the refresh token.
- * @returns {object}
- */
-function decodeWabAuthCookie(req, eSecret) {
-    var data = req.cookies['wabs-auth'];
-    if (data) {
-        try {
-            data = JSON.parse(data);
-            if (eSecret) data.refreshToken = decrypt(eSecret, data.refreshToken);
-            return data;
-        } catch (e) {}
-    }
-    return null;
 }
 
 /**
@@ -276,14 +349,87 @@ function login(req, res, next, oauth, redirectURI) {
  * @param {object} oauth The oauth instance.
  * @param {string} accessToken The access token to use.
  * @param {string} refreshToken The encrypted refresh token to use.
- * @param {string} redirectUrl The URL to direct back to after refresh.
- * @param {string} eSecret The secret to encode the refresh token.
  */
-function refresh(req, res, next, oauth, accessToken, refreshToken, redirectUrl, eSecret) {
+function refresh(req, res, next, oauth, accessToken, refreshToken) {
     oauth.refreshTokens(accessToken, refreshToken)
         .then(function(token) {
-            res.cookie('wabs-auth-stage', authStage.authorized);
             res.redirect(req.query.redirect);
         })
         .catch(next);
+}
+
+/**
+ * Get a wabs auth cookie manager.
+ * @param {object} req
+ * @param {object} res
+ * @param {string} eSecret
+ */
+function wabsAuthCookie(req, res, eSecret) {
+    const cookieName = 'wabs-auth';
+    const factory = {};
+
+    /**
+     * Delete the cookie.
+     */
+    factory.clear = function() {
+        res.clearCookie(cookieName);
+    };
+
+    /**
+     * Determine if the cookie exists
+     * @returns {boolean}
+     */
+    factory.exists = function() {
+        return !!req.signedCookies[cookieName];
+    };
+
+    /**
+     * Get a normalized wabs auth cookie.
+     * @returns {object}
+     */
+    factory.get = function() {
+        var data = req.signedCookies[cookieName];
+        if (data) {
+            try {
+                data = JSON.parse(data);
+                if (data.authorized) data.refreshToken = decrypt(eSecret, data.refreshToken);
+                return data;
+            } catch (e) {
+                data = null;
+            }
+        }
+        return data || {
+            accessToken: '',
+            authenticated: false,
+            authorized: false,
+            expiresIn: 0,
+            openId: null,
+            refreshToken: '',
+            scope: '',
+            tokenType: ''
+        };
+    };
+
+    /**
+     * Set a normalized wabs auth cookie.
+     * @param {boolean} authenticated
+     * @param {object} token
+     */
+    factory.set = function(authenticated, token) {
+        const authorized = !!(authenticated && token);
+        const data = {
+            accessToken: authorized ? token.accessToken : '',
+            authenticated: !!authenticated,
+            authorized: authorized,
+            expiresIn: authorized ? token.expiresIn : 0,
+            openId: authorized ? token.openId : null,
+            refreshToken: authorized ? encrypt(eSecret, token.refreshToken) : '',
+            scope: authorized ? token.scope : '',
+            tokenType: authorized ? token.tokenType : ''
+        };
+        const expires = new Date(Date.now() + (authorized ? token.expiresIn * 1000 : 60000));
+        res.cookie(cookieName, JSON.stringify(data), { expires: expires, signed: true });
+    };
+
+    return factory;
 }
