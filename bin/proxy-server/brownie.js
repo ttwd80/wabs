@@ -113,28 +113,16 @@ function decode(crypt, req, res, next) {
         // if we are missing the session key or brownie then we just ignore it and continue processing the request elsewhere
         if (brownie === null || sessionKey === null) return next();
 
-        // if auth mode is always then we have to store the brownie data on the query string
-        if (req.wabs.authMode === 'always') {
-            let query = Object.assign({}, req.query, { 'wabs-brownie': brownie });
-            let url = req.url.split('?')[0];
-            Object.keys(query).forEach(function(key, index) {
-                var value = query[key];
-                url += (index === 0 ? '?' : '&') + key + (('' + value) ? '=' + encodeURIComponent(value) : '');
+        // decode the brownie
+        crypt.decode(brownie, sessionKey)
+            .then(function (decodedBrownie) {
+                req.method = 'GET';
+                req.wabs.brownie = decodedBrownie;
+                next();
+            })
+            .catch(function (err) {
+                next(err);
             });
-            res.redirect(url);
-
-            // we don't need to redirect for oauth so we can modify the request
-        } else {
-            crypt.decode(brownie, sessionKey)
-                .then(function (decodedBrownie) {
-                    req.method = 'GET';
-                    req.wabs.brownie = decodedBrownie;
-                    next();
-                })
-                .catch(function (err) {
-                    next(err);
-                });
-        }
     });
 }
 
