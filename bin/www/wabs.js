@@ -3,10 +3,6 @@
     
     // don't allow this file to run twice
     if (window.hasOwnProperty("byu")) return;
-    
-    // store the time difference
-    wabs.timeDiff = Date.now() - wabs.time;
-    delete wabs.time;
 
     function ajax(url, method, data, callback) {
         var xhr = window.XMLHttpRequest ? new XMLHttpRequest() : new ActiveXObject("Microsoft.XMLHTTP");
@@ -23,20 +19,21 @@
         var authCookie;
         var autoRefresh;
         var autoRefreshTimeoutId;
-        var expires;
+        var initializedAt = Date.now();
         var logoutIframe;
 
         Object.defineProperty(byu, 'user', {
             enumerable: true,
             configurable: false,
-            get: function() { return authCookie.openId; },
+            get: function() {
+                return authCookie ? authCookie.openId : undefined; },
             set: function() { throw Error('user is read only'); }
         });
 
         Object.defineProperty(auth, 'accessToken', {
             enumerable: true,
             configurable: false,
-            get: function() { return authCookie.accessToken; },
+            get: function() { return authCookie ? authCookie.accessToken : undefined; },
             set: function() { throw Error('accessToken is read only'); }
         });
 
@@ -59,21 +56,25 @@
         Object.defineProperty(auth, 'expired', {
             enumerable: true,
             configurable: false,
-            get: function() { return !expires || Date.now() >= expires; },
+            get: function() { return auth.expiresIn > 0; },
             set: function() { throw Error('expired is read only'); }
         });
 
         Object.defineProperty(auth, 'expires', {
             enumerable: true,
             configurable: false,
-            get: function() { return expires ? expires - Date.now() : void 0; },
+            get: function() {
+                if (!authCookie) return 0;
+                var value = Math.round((initializedAt - Date.now()) / 1000) + authCookie.expiresIn;
+                return value < 0 ? 0 : value;
+            },
             set: function() { throw Error('expires is read only'); }
         });
 
         Object.defineProperty(auth, 'refreshToken', {
             enumerable: true,
             configurable: false,
-            get: function() { return authCookie.refreshToken; },
+            get: function() { return authCookie ? authCookie.refreshToken : undefined; },
             set: function() { throw Error('refreshToken is read only'); }
         });
 
@@ -97,7 +98,7 @@
             if (arguments.length < 2 || redirect === true) redirect = window.location.toString();
 
             // revoke the tokens if they are set
-            ajax(byu.wabs.services['oauth.revoke'].url, 'GET', '', function (status, text) {x
+            ajax(byu.wabs.services['oauth.revoke'].url, 'GET', '', function (status, text) {
 
                 if (status === 200) {
 
@@ -125,7 +126,6 @@
             });
 
             // erase all auth data
-            expires = void 0;
             clearTimeout(autoRefreshTimeoutId);
             eraseAuthData();
 
@@ -134,6 +134,9 @@
                 casLogout: !!casLogout,
                 redirect: redirect
             });
+
+            // dispatch an event about the update
+            dispatch('auth-update', auth);
         };
 
         /**
@@ -144,7 +147,7 @@
             var err;
             if (arguments.length === 0) callback = function() {};
             if (auth.accessToken && auth.refreshToken) {
-                ajaxGet(byu.wabs.services['oauth.refresh'].url, function(status, text) {
+                ajax(byu.wabs.services['oauth.refresh'].url, 'GET', '', function(status, text) {
                     if (status === 200) {
                         updateAuthData();
                         callback();
@@ -153,14 +156,12 @@
                         err.status = status;
                         callback(err);
                         dispatch('auth-error', err);
-                        auth.logout(false, false);
                     }
                 });
             } else {
                 err = Error('Refresh token does not exist.');
                 callback(err);
                 dispatch('auth-error', err);
-                auth.logout(false, false);
             }
         };
 
@@ -171,11 +172,20 @@
 
         function updateAuthData() {
             authCookie = (function() {
-                var cookie = /(?:^|;\s*)wabs-auth=([\s\S]*)?(?:\s*;|$)/.exec(document.cookie);
+                var cookie;
+                var cookies = document.cookie.split(/\s*;\s*/);
+                var i;
+
+                for (i = 0; i < cookies.length; i++) {
+                    if (cookies[i].indexOf('wabs-auth=') === 0) {
+                        cookie = cookies[i].substr(10);
+                        break;
+                    }
+                }
                 if (!cookie) return null;
 
-                var value = decodeURIComponent(cookie[1]);
-                var match = /^s:([\s\S]+)?\.[a-zA-Z0-9\+]+$/.exec(value);
+                var value = decodeURIComponent(cookie);
+                var match = /^s:([\s\S]+)?\.[a-zA-Z0-9\+\/=]+$/.exec(value);
                 if (!match) return null;
 
                 try {
@@ -186,7 +196,6 @@
             })();
 
             // set expiration and refresh timeout
-            expires = authCookie ? Date.now() + (authCookie.expiresIn * 1000) : void 0;
             setAutoRefreshTimeout();
 
             // dispatch an event about the update
@@ -196,8 +205,8 @@
         // set the next auto refresh time
         function setAutoRefreshTimeout() {
             clearTimeout(autoRefreshTimeoutId);
-            if (auth.autoRefresh && typeof auth.expires !== 'undefined') {
-                autoRefreshTimeoutId = setTimeout(auth.refresh, auth.expires + 1000);
+            if (auth.autoRefresh && auth.expires > 0) {
+                autoRefreshTimeoutId = setTimeout(auth.refresh, (auth.expires + 1) * 1000);
             }
         }
 
@@ -385,28 +394,26 @@
             var mode;
             var modeElement = document.querySelector('head meta[name="wabs-brownie"]');
 
-            if (element) {
-                data = getMetaContent('wabs-brownie-data');
-                mode = modeElement ? modeElement.getAttribute('content') : data.mode;
+            data = getMetaContent('wabs-brownie-data');
+            mode = modeElement ? modeElement.getAttribute('content') : data.mode;
 
-                // listen for link click events at the document level
-                if (mode === 'auto') {
-                    if (document.addEventListener) {
-                        document.addEventListener('click', interceptClickEvent);
-                    } else if (document.attachEvent) {
-                        document.attachEvent('onclick', interceptClickEvent);
-                    }
+            // listen for link click events at the document level
+            if (mode === 'auto') {
+                if (document.addEventListener) {
+                    document.addEventListener('click', interceptClickEvent);
+                } else if (document.attachEvent) {
+                    document.attachEvent('onclick', interceptClickEvent);
                 }
-
-                // initialize the store
-                if (data.store) {
-                    store = data.store;
-                    storageUpdate();
-                } else {
-                    storageGet();
-                }
-
             }
+
+            // initialize the store
+            if (data.store) {
+                store = data.store;
+                storageUpdate();
+            } else {
+                storageGet();
+            }
+
         })();
 
         // add the brownie object to the byu object
@@ -471,8 +478,8 @@
 
     setDocumentDomain();
     defineCustomEvent();
-    if (useOAuth) authorizationSetup();
-    if (useBrownie) brownieSetup();
+    if (wabs.auth) authorizationSetup();
+    if (!/^none$/.test(wabs.brownie)) brownieSetup();
 
     // fire ready event
     dispatch('ready', byu);

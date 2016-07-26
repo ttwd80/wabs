@@ -165,6 +165,10 @@ function Authenticate(config) {
             res.redirect('https://cas.byu.edu/cas/login?gateway=true&service=' + url);
 
         } else {
+            if (auth.authorized) {
+                auth.expiresIn = Math.floor((auth.expiresAt - Date.now()) / 1000);
+                cookie.set(auth.authenticated, auth);
+            }
             next();
         }
 
@@ -402,6 +406,7 @@ function wabsAuthCookie(req, res, eSecret) {
             accessToken: '',
             authenticated: false,
             authorized: false,
+            expiresAt: 0,
             expiresIn: 0,
             openId: null,
             refreshToken: '',
@@ -421,6 +426,7 @@ function wabsAuthCookie(req, res, eSecret) {
             accessToken: authorized ? token.accessToken : '',
             authenticated: !!authenticated,
             authorized: authorized,
+            expiresAt: authorized ? Date.now() + (token.expiresIn * 1000) : 0,
             expiresIn: authorized ? token.expiresIn : 0,
             openId: authorized ? token.openId : null,
             refreshToken: authorized ? encrypt(eSecret, token.refreshToken) : '',

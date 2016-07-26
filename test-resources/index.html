@@ -25,19 +25,29 @@
     <script>
 
         setInterval(function() {
-            var running = Math.round(byu.auth.expires / 1000);
+            var autoRefresh = 'false';
+            var running = 0;
+            var hours = 0;
+            var minutes = '00';
+            var seconds = '00';
 
-            var hours = Math.floor(running / 3600);
-            running -= hours * 3600;
+            if (byu.auth && byu.auth.expires > 0) {
+                running = byu.auth.expires;
 
-            var minutes = Math.floor(running / 60);
-            running -= minutes * 60;
-            if (minutes < 10) minutes = '0' + minutes;
+                hours = Math.floor(running / 3600);
+                running -= hours * 3600;
 
-            var seconds = running;
-            if (seconds < 10) seconds = '0' + seconds;
+                minutes = Math.floor(running / 60);
+                running -= minutes * 60;
+                if (minutes < 10) minutes = '0' + minutes;
 
-            document.querySelector('#autoRefresh').innerHTML = byu.auth.autoRefresh ? 'true': 'false';
+                seconds = running;
+                if (seconds < 10) seconds = '0' + seconds;
+
+                autoRefresh = byu.auth.autoRefresh ? 'true': 'false';
+            }
+
+            document.querySelector('#autoRefresh').innerHTML = autoRefresh;
             document.querySelector('#expires').innerHTML = hours + ':' + minutes + ':' + seconds;
         }, 250);
 
@@ -45,7 +55,7 @@
             var el = document.querySelector('#events');
             el.innerHTML +=
                 '<li>[' + new Date().toUTCString() + '] <strong>' + e.detail.name + ':</strong>' +
-                //' <pre>' + JSON.stringify(e.detail.data, null, 2) + "</pre>" +
+                ' <pre>' + JSON.stringify(e.detail.data, null, 2) + "</pre>" +
                 '</li>';
         });
 
