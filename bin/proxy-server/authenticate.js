@@ -433,7 +433,9 @@ function wabsAuthCookie(req, res, eSecret) {
             scope: authorized ? token.scope : '',
             tokenType: authorized ? token.tokenType : ''
         };
-        const expires = new Date(Date.now() + (authorized ? token.expiresIn * 1000 : 60000));
+
+        // authenticated = expires 10 minutes after
+        const expires = new Date(Date.now() + (authorized ? (600 + token.expiresIn) * 1000 : 60000));
         res.cookie(cookieName, JSON.stringify(data), { expires: expires, signed: true });
     };
 

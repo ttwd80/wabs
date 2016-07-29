@@ -19,21 +19,21 @@
         var authCookie;
         var autoRefresh;
         var autoRefreshTimeoutId;
-        var initializedAt = Date.now();
+        var initializedAt;
         var logoutIframe;
 
         Object.defineProperty(byu, 'user', {
             enumerable: true,
             configurable: false,
             get: function() {
-                return authCookie ? authCookie.openId : undefined; },
+                return auth.expired ? undefined : authCookie.openId; },
             set: function() { throw Error('user is read only'); }
         });
 
         Object.defineProperty(auth, 'accessToken', {
             enumerable: true,
             configurable: false,
-            get: function() { return authCookie ? authCookie.accessToken : undefined; },
+            get: function() { return auth.expired ? undefined : authCookie.accessToken; },
             set: function() { throw Error('accessToken is read only'); }
         });
 
@@ -56,7 +56,7 @@
         Object.defineProperty(auth, 'expired', {
             enumerable: true,
             configurable: false,
-            get: function() { return auth.expiresIn > 0; },
+            get: function() { return auth.expires === 0; },
             set: function() { throw Error('expired is read only'); }
         });
 
@@ -74,7 +74,7 @@
         Object.defineProperty(auth, 'refreshToken', {
             enumerable: true,
             configurable: false,
-            get: function() { return authCookie ? authCookie.refreshToken : undefined; },
+            get: function() { return auth.expired ? undefined : authCookie.refreshToken; },
             set: function() { throw Error('refreshToken is read only'); }
         });
 
@@ -146,9 +146,9 @@
         auth.refresh = function(callback) {
             var err;
             if (arguments.length === 0) callback = function() {};
-            if (auth.accessToken && auth.refreshToken) {
+            if (authCookie && authCookie.accessToken && authCookie.refreshToken) {
                 ajax(byu.wabs.services['oauth.refresh'].url, 'GET', '', function(status, text) {
-                    if (status === 200) {
+                    if (/^OK:/.test(text)) {
                         updateAuthData();
                         callback();
                     } else {
@@ -194,6 +194,8 @@
                     return null;
                 }
             })();
+
+            initializedAt = Date.now();
 
             // set expiration and refresh timeout
             setAutoRefreshTimeout();
