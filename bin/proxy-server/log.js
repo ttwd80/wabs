@@ -13,14 +13,22 @@ module.exports = function() {
         var date = new Date();
         var received = date.toISOString();
         var start = +date;
+        var redirectingTo;
+
+        const redirect = res.redirect;
+        res.redirect = function(location) {
+            redirectingTo = location;
+            redirect.apply(res, arguments);
+        };
 
         onFinished(res, function(err, res) {
-            console.log(
+            var output =
                 chalk.bold('[REQUEST]') + ' : ' +
                 chalk.cyan(res.statusCode) + ' : ' +
                 chalk.yellow(getSeconds(Date.now() - start)) + ' : ' +
-                chalk.blue(req.url)
-            );
+                chalk.blue(req.url || '/');
+            if (redirectingTo) output += ' => ' + redirectingTo;
+            console.log(output);
         });
 
         next();
