@@ -32,6 +32,10 @@ module.exports = function(config) {
     // define the proxies
     endpoints.forEach(function(item) {
         const proxy = httpProxy.createProxyServer({ target: item.source, ws: true });
+        const host = extract_host(item.source);
+        proxy.on('proxyReq', function(proxyReq, req, res, options) {
+            proxyReq.setHeader('Host', host);
+        });
         proxy.on('error', function(err, req, res) {
             if (err.message !== 'socket hang up') console.error(err.message);
             if (!res.headersSent) {
@@ -190,4 +194,14 @@ function getMetaTag(name, content) {
  */
 function normalize(endpoint) {
     return '/' + endpoint.split(/\?|#/)[0].replace(/^\//, '').replace(/\/$/, '');
+}
+
+/**
+ * Take a url and return the hos portion
+ * @param {string} endpoint
+ * @returns {string}
+ */
+function extract_host(location) {
+    return location.replace(/^http:\/\//g, "").replace(/\/.*/g, "").replace(/:[0-9]*$/g, "");
+}
 }
