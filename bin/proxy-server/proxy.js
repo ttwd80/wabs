@@ -28,7 +28,7 @@ module.exports = function(config) {
         head: [ brownieMeta ],
         body: [ wabScript ]
     });
-    
+
     // define the proxies
     endpoints.forEach(function(item) {
         const proxy = httpProxy.createProxyServer({ target: item.source, ws: true });
@@ -38,6 +38,7 @@ module.exports = function(config) {
                 res.status(500);
                 res.set('content-type', 'text/plain');
                 res.send('Internal server error');
+                res.setHeader('Host', extract_hostname(item.source));
             } else {
                 res.end();
             }
