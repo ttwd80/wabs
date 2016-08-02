@@ -204,4 +204,3 @@ function normalize(endpoint) {
 function extract_host(location) {
     return location.replace(/^http:\/\//g, "").replace(/\/.*/g, "").replace(/:[0-9]*$/g, "");
 }
-}
